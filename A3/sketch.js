@@ -11,8 +11,8 @@ let data = [];
 // Preload images and csv
 function preload(){
   // load csv (commented version is for faster loading locally for debugging purposes)
-  table = loadTable('./data/cod2.csv', 'csv', 'header')
-  //table = loadTable(gist, 'csv', 'header')
+  //table = loadTable('./data/cod2.csv', 'csv', 'header')
+  table = loadTable(gist, 'csv', 'header')
 }
 
 function read_data(){
