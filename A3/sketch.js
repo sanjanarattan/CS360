@@ -17,6 +17,8 @@ function preload(){
   table = loadTable(gist, 'csv', 'header')
   // TODO maybe put in gist
   f1 = loadImage("./images/Figure_1.png")
+  bg = loadImage("./images/dotted_notebook.png")
+
 }
 
 function read_data(){
@@ -182,27 +184,57 @@ function hist(y){
   pop()
 }
 
+// box whiker 
+function bw(y){
+  // graph title
+  push();
+  fill(0);
+  textSize(17);
+  text(`2. Distribution of Age Related Rate of Death due to Cerebrovascular Diseases in the USA (${y})`, hx, hy);
+  pop();
+
+  let year = `${y}`;
+  let data_fi = data.filter((d) => d.year == year);
+  //console.log(data_fi)
+
+  
+  data_fi.sort((a, b) => b.rate - a.rate); 
+  console.log(data_fi)
+
+
+  // we assume 50 states because data is clean
+  let mid = 25; 
+  let median = (data_fi[mid - 1].rate + data_fi[mid].rate) / 2; 
+  let q1 = data_fi[Math.floor(mid / 2)].rate; 
+  let q3 = data_fi[mid + Math.floor(mid / 2)].rate; 
+  let iqr = q3 - q1
+  let min = q1 - (1.5 * iqr)
+  let max = q3 + (1.5 * iqr)
+
+  console.log("median:", median, "q1:", q1, "q3:", q3, "min:", min, "max", max); 
+  
+}
+
+
 function setup() {
-  createCanvas(1200, 5000);
+  createCanvas(1600, 5000);
   textFont('Courier New');
   background(255);
   slider = createSlider(1999, 2017, 1999, 1);
   slider.position(hx + 1100, hy + 500);
   slider.size(50)
   read_data()
+  bw(1999)
 }
 
 function draw() {
   background(256)
+  image(bg, 0, 0, 1600, 10000)
   title();
   let y = slider.value();
   hist(y);
-  push()
   textSize(15)
   text("2. Distribution of RODS in the USA (Seaborn Version)", hx, hy + 600);
-  push()
   image(f1, hx, hy + 700, hx+ 1000, hy + 800);
-
-
   
 }
