@@ -339,8 +339,6 @@ function bw(y){
     pop();
   }
 
-
-
   let x_min = map(min, 0, 100, x_start, x_end); 
   let x_q1 = map(q1, 0, 100, x_start, x_end);   
   ellipse(x_min, by - 100, 1.5);
