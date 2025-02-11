@@ -3,26 +3,79 @@ let gy = 10;
 let hx = gx;
 let hy = gy + 140;
 let by = hy + 2000;
+let dy = by + 1500;
 let slider;
 let f1;
 
 let gist = "https://gist.githubusercontent.com/sanjanarattan/fb4a5813ec52f72e693b75d4083fa700/raw/000bdd0150cceb737bfdf8c84bf48b809191a14e/cod.csv"
 
 
+// dictionary of abbreviations to prevent overlaps
+let abbrevs = {
+  "Alabama": "AL",
+  "Alaska": "AK",
+  "Arizona": "AZ",
+  "Arkansas": "AR",
+  "California": "CA",
+  "Colorado": "CO",
+  "Connecticut": "CT",
+  "Delaware": "DE",
+  "Florida": "FL",
+  "Georgia": "GA",
+  "Hawaii": "HI",
+  "Idaho": "ID",
+  "Illinois": "IL",
+  "Indiana": "IN",
+  "Iowa": "IA",
+  "Kansas": "KS",
+  "Kentucky": "KY",
+  "Louisiana": "LA",
+  "Maine": "ME",
+  "Maryland": "MD",
+  "Massachusetts": "MA",
+  "Michigan": "MI",
+  "Minnesota": "MN",
+  "Mississippi": "MS",
+  "Missouri": "MO",
+  "Montana": "MT",
+  "Nebraska": "NE",
+  "Nevada": "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  "Ohio": "OH",
+  "Oklahoma": "OK",
+  "Oregon": "OR",
+  "Pennsylvania": "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  "Tennessee": "TN",
+  "Texas": "TX",
+  "Utah": "UT",
+  "Vermont": "VT",
+  "Virginia": "VA",
+  "Washington": "WA",
+  "West Virginia": "WV",
+  "Wisconsin": "WI",
+  "Wyoming": "WY"
+};
+
+let state_list = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware","Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", 
+  "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", 
+  "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", 
+  "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", 
+  "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", 
+  "West Virginia", "Wisconsin", "Wyoming"];
+
+
+
 let data = [];
-
-// Preload images and csv
-function preload(){
-  // load csv (commented version is for faster loading locally for debugging purposes)
-  //table = loadTable('./data/cod2.csv', 'csv', 'header')
-  table = loadTable(gist, 'csv', 'header')
-  // TODO maybe put in gist
-  f1 = loadImage("./images/Figure_1.png");
-  bg = loadImage("./images/dn.png");
-  f2 = loadImage("./images/Figure_6.png");
-
-
-}
+//let state_list = [];
+let state_colors = {};
 
 function read_data(){
   for (let i = 0; i < table.getRowCount(); i++) {
@@ -35,10 +88,29 @@ function read_data(){
     if (disease == "Stroke" && state != "United States" && state != "District of Columbia") {
       data.push({ year, state, deaths, rate});
     }
+
   }
   // sort data by deaths
   data.sort((a, b) => b.deaths - a.deaths);
 
+  for (let i = 0; i < state_list.length; i++) {
+    push();
+    state_colors[state_list[i]] = color(random(50, 255), random(50, 255), random(50, 255));;  
+    pop();
+  }  
+
+}
+
+// Preload images and csv
+function preload(){
+  // load csv (commented version is for faster loading locally for debugging purposes)
+  //table = loadTable('./data/cod2.csv', 'csv', 'header')
+  table = loadTable(gist, 'csv', 'header')
+  // TODO maybe put in gist
+  f1 = loadImage("./images/Figure_1.png");
+  bg = loadImage("./images/dn.png");
+  f2 = loadImage("./images/Figure_6.png");
+  f3 = loadImage("./images/Figure_4.png");
 }
 
 
@@ -197,8 +269,16 @@ function s_hist(){
 function s_bw(){
   push();
   textSize(17)
-  text("4. Distribution of RODS in the USA (Seaborn Version)", hx, by + 300);
+  text("4. Distribution of RODS in the USA (Seaborn Version)", hx, by + 600);
   image(f2, hx, hy + 2400, hx+ 1100);
+  pop();
+}
+
+function s_dp(){
+  push();
+  textSize(17)
+  text("7. Rate of Death in the USA (Seaborn Version)", hx, dy + 900);
+  image(f3, hx, dy + 900);
   pop();
 }
 
@@ -290,17 +370,87 @@ function bw(y){
       let o_scale = map(d, 0, 100, x_start, x_end); 
       push();
       noFill();
-      ellipse(o_scale, by - 100, 5);  
+      ellipse(o_scale, by - 100, 5); 
+      if (dist(mouseX, mouseY, o_scale, by - 100) < 7) {
+        fill(0);
+        textSize(10);
+        x_rand = random(1, 3)
+        text(d.toFixed(1), o_scale + x_rand, by - 110); 
+      } 
       pop();
     }
+  }
+
+}
+
+
+// dot plot function
+function dp() {
+  // labels
+  fill(0);
+  textSize(20);
+  text('Years', gx + 500, dy + 800);
+  text('5. Rate of Death from Cerebrovascular Diseases per State from 1999 - 2017', gx / 2, dy - 250);
+
+  bg_width = 1000;
+  // axes
+  line(70, dy + 700, 70 + bg_width, dy + 700);
+  line(70, dy + 700, 70, dy - 200);
+
+  // y-axis labels - for rates
+  let num_ticks = 10;
+  let min_rate = 24;
+  let max_rate = max(data.map((d) => d.rate));
+  let tick_interval = (max_rate - min_rate) / num_ticks;
+
+  for (let i = 0; i <= num_ticks; i++) {
+    let rate_value = min_rate + i * tick_interval;
+    let y_pos = map(rate_value, min_rate, max_rate, dy + 700, dy - 200);
+    line(70 - 10, y_pos, 70, y_pos);
+    fill(0);
+    textSize(12);
+    text(round(rate_value, 1), 40, y_pos + 5);
+  }
+
+
+  // x-axis labels - plot only every 3 years
+  let years = [1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017];
+  for (let i = 0; i < years.length; i++) {
+    let x_pos = map(years[i], 1999, 2017, 70, 70 + bg_width);
+    line(x_pos, dy + 710, x_pos, dy + 700);
+    fill(0);
+    textSize(12);
+    text(years[i], x_pos, dy + 710);
+  }
+
+  // plotting logic - map the x and y of each dot based on the value, min and max
+  for (let i = 0; i < data.length; i++) {
+    let dot_y = map(data[i].rate, min_rate, max_rate, dy + 700, dy - 200);
+    let dot_x = map(data[i].year, 1999, 2017, 70, 70 + bg_width);
+
+    let jitter_x = random(-0.5, 0.5); 
+    let jitter_y = random(-1, 1); 
+
+    // lookup the assigned state color to color dot
+    let dot_color = state_colors[data[i].state];
+    push();
+    fill(dot_color);
+    ellipse(dot_x + jitter_x, dot_y + jitter_y, 5, 5);
+    // hover logic - check distance with inbuilt mouse x/y position
+    let text_color = dist(mouseX, mouseY, dot_x + jitter_x, dot_y + jitter_y) < 6 ? 0 : 255;
+    fill(text_color);
+    textSize(14);
+    text(abbrevs[data[i].state], dot_x + jitter_x + 15, dot_y + jitter_y - 10);
+
+    pop();
+    
+  }
 }
 
 
-
-}
 
 function setup() {
-  createCanvas(1600, 5000);
+  createCanvas(1600, 7000);
   textFont('Courier New');
   background(255);
   slider = createSlider(1999, 2017, 1999, 1);
@@ -312,6 +462,7 @@ function setup() {
   slider2.size(50);
 
   read_data();
+
 }
 
 function draw() {
@@ -321,7 +472,9 @@ function draw() {
   let y = slider.value();
   hist(y);
   let z = slider2.value();
-  bw(z);  
+  bw(z); 
+  dp();
   s_hist();
   s_bw();
+  s_dp();
 }
