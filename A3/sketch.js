@@ -362,8 +362,51 @@ function bw(y){
   ellipse(x_med, by - 100, 1.5);
   line(x_med, by - 200, x_med, by);
 
+  push();
+  fill(dist(mouseX, mouseY, x_min, by - 100) < 7 ? [255, 0, 0] : 0);
+  if (dist(mouseX, mouseY, x_min, by - 100) < 7) {
+    fill(0);
+    textSize(10);
+    text(min.toFixed(1), x_min + 10, by - 110);
+  }
+  fill(dist(mouseX, mouseY, x_q1, by - 100) < 7 ? [255, 0, 0] : 0);
+  if (dist(mouseX, mouseY, x_q1, by - 100) < 7) {
+    fill(0);
+    textSize(10);
+    text(q1.toFixed(1), x_q1 - 40, by - 110);
+  }
+  line(x_min, by - 100, x_q1, by - 100);
 
- 
+  push();
+  fill(dist(mouseX, mouseY, x_max, by - 100) < 7 ? [255, 0, 0] : 0);
+  if (dist(mouseX, mouseY, x_max, by - 100) < 7) {
+    fill(0);
+    textSize(10);
+    text(max.toFixed(1), x_max + 10, by - 110);
+  }
+  fill(dist(mouseX, mouseY, x_q3, by - 100) < 7 ? [255, 0, 0] : 0);
+  if (dist(mouseX, mouseY, x_q3, by - 100) < 7) {
+    fill(0);
+    textSize(10);
+    text(q3.toFixed(1), x_q3 + 10, by - 110);
+  }
+  line(x_q3, by - 100, x_max, by - 100);
+
+  push();
+  fill(230, 230, 250);
+  rect(x_q1, by - 200, x_q3 - x_q1 , 200);
+  pop();
+
+  push();
+  fill(dist(mouseX, mouseY, x_med, by - 100) < 7 ? [255, 0, 0] : 0);
+  if (dist(mouseX, mouseY, x_med, by - 100) < 7) {
+    fill(0);
+    textSize(10);
+    text(median.toFixed(1), x_med + 10, by - 110);
+  }
+  line(x_med, by - 200, x_med, by);
+
+
   let arr = data_fi.map(d => d.rate);
 
   for (let d of arr) {
@@ -479,4 +522,12 @@ function draw() {
   s_hist();
   s_bw();
   s_dp();
+
+  push();
+  textSize(20)
+  translate(gx + 10, 500);  
+  rotate(-PI / 2);           // Rotate the text 90 degrees counterclockwise
+  text("Frequency", 0, 0);   // Position the text in the center after rotation
+  pop();
+  
 }

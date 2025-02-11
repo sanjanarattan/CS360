@@ -1,9 +1,9 @@
 ## Main Report
 
-[CS360 - Assignment 3 Report](https://sanjanarattan.github.io/CS360/A3/)
+<a href="https://sanjanarattan.github.io/CS360/A3/d" target="_blank">Visualization 1</a>
 
 ## Vizhub Links
 
-- [Visualization 1](https://vizhub.com/sanjanarattan/b23b661f810442ebad93ea873b8d8a00?mode=embed)
-- [Visualization 2](https://vizhub.com/sanjanarattan/3efdcd1e69204717a18bc1f71c81e1be?mode=embed)
-- [Visualization 3](https://vizhub.com/sanjanarattan/07b3e5dde9d24ed5bed5d388795a85a1?mode=embed)
+<a href="https://vizhub.com/sanjanarattan/b23b661f810442ebad93ea873b8d8a00?mode=embed" target="_blank">CS360 - Assignment 3 Report</a>
+<a href="https://vizhub.com/sanjanarattan/3efdcd1e69204717a18bc1f71c81e1be?mode=embed" target="_blank">Visualization 2</a>
+<a href="https://vizhub.com/sanjanarattan/07b3e5dde9d24ed5bed5d388795a85a1?mode=embed" target="_blank">Visualization 3</a>
