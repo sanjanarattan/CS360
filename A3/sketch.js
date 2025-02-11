@@ -214,6 +214,8 @@ function hist(y){
     textSize(10)
     text((i * max_freq_label) / 10, hx + 40, y_start);
     line(hx + 58, y_start, hx + 60, y_start);
+    stroke(211);
+    line(hx + 60, y_start, hx + 1000, y_start);
     y_start = y_start- y_ticks_scale
     pop()
   }
