@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<head>
+    <title>Visualizing Deaths Due to Cerebrovascular Diseases in the United States in 2017</title>
+    <link rel="stylesheet" href="styles.css"> 
+</head>
+
+<body>
+    <div id="container">
+        <svg id="b_chart" width="1400" height="1200">
+        </svg> 
+
+        <svg id="s_plot" width="1400" height="1200">
+        </svg> 
+
+        <svg id="h_map" width="1400" height="1200">
+        </svg> 
+
+    </div>
+    <script type="module">
+
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        
+        const width = 1400;
+        const height = 800;
+
+        const m_left = 100;
+        const m_right = 10;
+        const m_top = 150;
+        const m_bottom = 150;
+        const pad = 0.1;
+
+        async function load_data() {
+            let data = await d3.csv("./data/cod2.csv");
+            data = data.map(d => ({
+                year: parseInt(d.Year),
+                cause: d["Cause Name"],
+                state: d.State,
+                d_num: parseInt(d.Deaths),
+                d_rate: parseFloat(d["Age-adjusted Death Rate"])
+            }));
+
+            let b_data = data
+                .filter(d => d.year === 2017)
+                .filter(d => d.cause === "Stroke")
+                .filter(d => d.state !== "United States" && d.state !== "District of Columbia")
+                .sort((a, b) => b.d_num - a.d_num);
+
+            bar_chart(b_data);
+            scatter_plot(data);
+        }
+   
+
+
+        function scatter_plot(data){
+            const svg = d3.select("#s_plot");
+
+            const f_data = data.filter(d => d.cause === "Stroke");
+
+            const avg_data = Array.from(
+                d3.group(f_data, d => d.year), 
+                ([year, values]) => ({
+                    year: year,
+                    avg_rate: d3.mean(values, d => d.d_rate)
+                })
+            ).sort((a, b) => a.year - b.year);
+
+            const x_scale = d3.scaleBand()
+                .domain(avg_data.map(d => d.year))
+                .range([0, width - m_left - m_right])
+                .padding(pad);
+
+            const y_scale = d3.scaleLinear()
+                .domain([d3.min(avg_data, d => d.avg_rate) - 5, d3.max(avg_data, d => d.avg_rate)])
+                .range([height - m_top - m_bottom, 0]);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${m_left}, ${m_top})`);
+
+            g.append("text")
+                .attr("x", width / 3)
+                .attr("y", height / 10 - 100)
+                .attr("font-size", "18px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Average Death Rate per Year due to Cerebrovascular Diseases");
+                   
+            svg.append("path")
+                .attr("d", "M250 120 Q450 130 600 125 Q1000 130 800 130")
+                .attr("fill", "none")
+                .attr("stroke", "#cbc3be")
+                .attr("stroke-width", 25)
+                .attr("stroke-linecap", "round")
+                .attr("opacity", 0.2);
+
+
+            g.append("g")
+                .call(d3.axisBottom(x_scale))
+                .attr("transform", `translate(0, ${height - m_top - m_bottom})`)
+                .selectAll("text")
+                .attr("font-family", "Courier New")
+                .attr("transform", "rotate(-50)")
+                .attr("text-anchor", "end");
+
+            g.append("g")
+                .call(d3.axisLeft(y_scale))
+                .selectAll("text")
+                .style("font-family", "Courier New");
+            
+            svg.append("text")
+                .attr("x", (width - (m_left + m_right)) / 2)
+                .attr("y", height - m_bottom + 60)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Year");
+            
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(height / 2))
+                .attr("y", m_left / 4)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Average Rate of Death");
+                  
+
+            const dots = g.selectAll(".dot")
+                .data(avg_data)
+                .enter()
+                .append("circle")
+                .attr("class", "dot")
+                .attr("cx", d => x_scale(d.year) + x_scale.bandwidth() / 2)
+                .attr("cy", d => y_scale(d.avg_rate))
+                .attr("r", 5)
+                .attr("opacity", "0.3")
+                .attr("fill", "#000000");
+            
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("position", "absolute")
+                .style("padding", "10px")
+                .style("background-color", "#ffffff")
+                .style("border", "1px solid #dddddd")
+                .style("border-radius", "5px")
+                .style("opacity", 0)
+ 
+             
+            dots.on("mouseover", function (event, d) {
+                tooltip.transition().style("opacity", 0.7);
+                tooltip.html(`Min: ${d3.min(avg_data, d => d.avg_rate).toFixed(2)}, Max: ${d3.max(avg_data, d => d.avg_rate).toFixed(2)}, Average: ${d.avg_rate.toFixed(2)}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 30) + "px");
+
+            })
+                .on("mousemove", function (event) {
+                tooltip.style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 30) + "px");
+            })
+                .on("mouseout", function () {
+                tooltip.transition()
+                .duration(200)
+                .style("opacity", 0);
+            });
+
+
+            
+            // code stolen from : https://www.visualcinnamon.com/2016/06/glow-filter-d3-visualization/ (idk who wrote this)
+
+            svg.append("defs")
+                .append("filter")
+                .attr("id", "glow")
+                .append("feGaussianBlur")
+                .attr("stdDeviation", 1) 
+                .attr("result", "blurred");
+
+            svg.select("defs")
+                .append("filter")
+                .attr("id", "glow2")
+                .append("feDropShadow")
+                .attr("dx", 0)
+                .attr("dy", 0)
+                .attr("stdDeviation", 3)
+                .attr("flood-color", "#cbc3be") 
+                .attr("flood-opacity", 1);
+
+            // code stolen from : https://observablehq.com/@onoratod/animate-a-path-in-d3 (thank you danny)
+            
+            const line_gen = d3.line()
+                .x(d => x_scale(d.year) + x_scale.bandwidth() / 2)
+                .y(d => y_scale(d.avg_rate));
+
+            
+            var path2 = svg.append("path")
+                .attr("d", line_gen(avg_data))
+                .attr("fill", "none")
+                .attr("opacity", 0.5)
+                .attr("stroke-width", 2)
+                .attr("stroke", "darkgrey")
+                .attr("filter", "url(#glow2)") 
+                .attr("transform", "translate(100, 150)");
+            
+            const length = path2.node().getTotalLength();
+
+            function repeat(){
+                path2.attr("stroke-dasharray", length + " " + length)
+                    .attr("stroke-dashoffset", length)
+                    .transition()
+                    .ease(d3.easeLinear)
+                    .attr("stroke-dashoffset", 0)
+                    .duration(5000)
+                    .on("end", () => setTimeout(repeat, 1000));
+                
+            }
+
+            repeat();
+  
+            return svg.node();
+                
+        }
+
+
+        function bar_chart(data){
+            const svg = d3.select("#b_chart");
+            const g = svg.append("g")
+                .attr("transform", `translate(${m_left}, ${m_top})`);
+
+            const x_scale = d3.scaleBand()
+                .domain(data.map(d => d.state))
+                .range([0, width - (m_left + m_right)])
+                .padding(pad);
+            
+            const y_scale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.d_num)])
+                .range([height - (m_top + m_bottom), 0]);
+            
+            svg.append("path")
+                .attr("d", "M345 170 Q450 180 600 175 Q650 170 750 180 Q850 170 950 175 Q1000 180 1050 170")
+                .attr("fill", "none")
+                .attr("stroke", "#cbc3be")
+                .attr("stroke-width", 25)
+                .attr("stroke-linecap", "round")
+                .attr("opacity", 0.2);
+
+            svg.append("g")
+                .call(d3.axisBottom(x_scale))
+                .attr("transform", `translate(${m_left}, ${height - m_bottom})`)
+                .selectAll("text")
+                .attr("font-family", "Courier New")
+                .attr("transform", "rotate(-60)")
+                .attr("text-anchor", "end");
+
+            svg.append("g")
+                .call(d3.axisLeft(y_scale))
+                .attr("transform", `translate(${m_left}, ${m_top})`)
+                .selectAll("text")
+                .attr("font-family", "Courier New");
+
+            svg.append("text")
+                .attr("x", (width - (m_left + m_right)) / 2)
+                .attr("y", height - m_bottom + 100)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("State");
+            
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(height / 2))
+                .attr("y", m_left / 4)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Number of Deaths");
+            
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height / 6 + 50)
+                .attr("font-size", "18px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Number of Deaths Due to Cerebrovascular Diseases in 2017 (per State)");
+
+            const color_scale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.d_num)]) 
+                .range([ "#e5acb6", "#f88379"]);
+            //#420832
+            const bars = g.selectAll(".bar")
+                .data(data)
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x_scale(d.state))
+                .attr("y", d => y_scale(d.d_num))
+                .attr("width", x_scale.bandwidth())
+                .attr("height", d => height - m_top - m_bottom - y_scale(d.d_num))
+                .attr("opacity", 0.7)
+                .attr("fill", d => color_scale(d.d_num));
+
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("position", "absolute")
+                .style("padding", "10px")
+                .style("background-color", "#fff")
+                .style("border", "1px solid #ddd")
+                .style("border-radius", "5px")
+                .style("opacity", 0);
+            
+            bars.on("mouseover", function(event, d) {
+                tooltip.transition().style("opacity", 0.9);
+                tooltip.html(`State: ${d.state}<br>Deaths: ${d.d_num}<br>Death Rate: ${d.d_rate.toFixed(2)}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 30) + "px");
+            })
+            .on("mousemove", function(event) {
+                tooltip.style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 30) + "px");
+            })
+            .on("mouseout", function() {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0);
+            });
+
+        }
+
+        load_data();
+
+    </script>
+</body>
+</html>
