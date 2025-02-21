@@ -494,7 +494,7 @@ function dp() {
 
 function setup() {
   createCanvas(1600, 7000);
-  textFont('Courier New');
+  textFont('  ');
   background(255);
   slider = createSlider(1999, 2017, 1999, 1);
   slider.position(hx + 1100, hy + 500);
@@ -524,8 +524,8 @@ function draw() {
   push();
   textSize(20)
   translate(gx + 10, 500);  
-  rotate(-PI / 2);           // Rotate the text 90 degrees counterclockwise
-  text("Frequency", 0, 0);   // Position the text in the center after rotation
+  rotate(-PI / 2);           
+  text("Frequency", 0, 0);  
   pop();
   
 }

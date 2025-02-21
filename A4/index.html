@@ -2,10 +2,21 @@
 <head>
     <title>Visualizing Deaths Due to Cerebrovascular Diseases in the United States in 2017</title>
     <link rel="stylesheet" href="styles.css"> 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
 </head>
 
 <body>
-    <div id="container">
+        <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
+
+        <div style="position:absolute; top: 30px;margin-bottom:50px;left:30px; font-family: 'Courier New',monospace; font-size: 30px;">
+            cerebrovascular diseases
+        </div>
+
+      
+    
+
         <svg id="b_chart" width="1400" height="1200">
         </svg> 
 
@@ -15,8 +26,24 @@
         <svg id="h_map" width="1400" height="1200">
         </svg> 
 
-    </div>
+        <svg id="h_graph" width="1400" height="1200">
+        </svg>
+
+    
+
     <script type="module">
+
+        /* General resources:
+        https://d3js.org/getting-started
+        https://www.tutorialsteacher.com/d3js/create-bar-chart-using-d3js
+        https://www.reddit.com/r/javascript/comments/9rpa9a/how_to_get_a_smooth_continuous_brush_stroke_canvas/
+        https://www.w3schools.com/colors/colors_picker.asp
+        https://www.fashiontrendsetter.com/content/color_trends/color-decoder/Color-Code-Neon.html
+
+        Bezier Curve (Highlighter)
+        https://d3js.org/d3-path
+
+        */
 
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         
@@ -30,6 +57,9 @@
         const pad = 0.1;
 
         async function load_data() {
+
+            // load data + parse numerical data to prevent errors later
+            
             let data = await d3.csv("./data/cod2.csv");
             data = data.map(d => ({
                 year: parseInt(d.Year),
@@ -40,15 +70,296 @@
             }));
 
             let b_data = data
-                .filter(d => d.year === 2017)
-                .filter(d => d.cause === "Stroke")
-                .filter(d => d.state !== "United States" && d.state !== "District of Columbia")
-                .sort((a, b) => b.d_num - a.d_num);
+                .filter(d => d.year== 2017)
+                .filter(d => d.cause == "Stroke")
+                .filter(d => d.state !="United States" && d.state != "District of Columbia")
+                .sort((a,b) => b.d_num - a.d_num);
 
+            
+            
             bar_chart(b_data);
-            scatter_plot(data);
+            scatter_plot(data);            
+            heat_map(data);
+            hist_graph(data)
+            //console.log(data)
+
         }
-   
+
+        function hist_graph(data) {
+
+            /* Heatmap inspired by: https://d3-graph-gallery.com/graph/heatmap_style.html
+                                    https://d3-graph-gallery.com/graph/histogram_basic.html 
+            */
+
+            const svg = d3.select('#h_graph');
+
+            const f_data = data
+                .filter(d =>d.cause == "Stroke")
+                .filter(d => d.state!="United States" && d.state != "District of Columbia");
+
+            const all_rates = f_data.map(d => d.d_rate);
+
+            const x_scale = d3.scaleLinear()
+                // added a 1 buffer to prevent gap between x axis and first bar (bc this is a histogram)
+                .domain([d3.min(all_rates) +1, d3.max(all_rates) ]) 
+                .range([0, width - (m_left + m_right)]);
+
+            
+            const histogram = d3.histogram()
+                .value(d => d) 
+                .domain(x_scale.domain())
+                .thresholds(x_scale.ticks(10)); 
+
+            const bins = histogram(all_rates);
+                //console.log(bins)
+
+            const y_scale = d3.scaleLinear()
+                .domain([0, d3.max(bins, d => d.length)]) 
+                .range([height -m_bottom, m_top]); 
+
+            svg.append("g")
+                .attr("transform", `translate(${m_left}, 0)`)
+                .call(d3.axisLeft(y_scale));
+                     
+            // bez curve - tried to make an uneven highlight look (Move, Quadratic, Quadratic)
+            svg.append("path")
+                .attr("d", "M240 60 Q450 60 600 80 Q1050 60 1150 50")
+                .attr("fill", "none")
+                .attr("stroke", "#e6e600")
+                .attr("stroke-width", 25)
+                .attr("stroke-linecap", "round")//butt
+                .attr("opacity", 0.2);
+
+            svg.append("g")
+                .attr("transform", `translate(${m_left}, ${height-m_bottom})`)
+                .call(d3.axisBottom(x_scale));
+                
+            const color_scale = d3.scaleLinear()
+                .domain([d3.min(bins, d => d.length), d3.max(bins, d => d.length)]) 
+                .range(["#ffb3b3", "#330000"]);  
+
+            const rects = svg.selectAll("rect")
+                .data(bins)
+                .enter()
+                .append("rect")
+                .attr("x", d => m_left + x_scale(d.x0)) 
+                .attr("y", d => y_scale(d.length))
+                .attr("width", d => Math.max(1, x_scale(d.x1) - x_scale(d.x0))) 
+                .attr("height", d => height - m_bottom - y_scale(d.length)) 
+                .attr("fill", d => color_scale(d.length))
+
+
+            svg.append("text")
+                .attr("x", (width / 2))
+                .attr("y", m_top / 2)
+                .attr("font-size", "18px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Distribution of Age-Adjusted Rate of Death due to Cerebrovascular Diseases (1999 - 2017)");
+
+            svg.append("text")
+                .attr("x", (width - (m_left + m_right)) / 2)
+                .attr("y", height - m_bottom + 60)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor","middle")
+                .text("Age-Related Rate of Death");
+            
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(height / 2))
+                .attr("y", m_left / 4)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Frequency");
+
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+
+            // Mouse Event: https://www.w3schools.com/jsref/event_pagex.asp
+            //https://chartio.com/resources/tutorials/how-to-show-data-on-mouseover-in-d3js/#creating-a-tooltip-using-mouseover-events
+            rects.on("mouseover", function (event, d) {
+                tooltip.transition().style("opacity", 0.7);
+                let r = d.length
+                tooltip.html(`${r}`) 
+                    .style("left", event.pageX+ 15 +"px")
+                    .style("top", event.pageY+ "px")
+                    .style("font-size", "15px")
+                    .style("font-weight", "700")
+                    .style("color", "black")
+                    .style("opacity", 5)
+
+                
+
+                d3.select(this)
+                    .style("opacity", 1)
+                    .style("stroke","black")
+                    .attr("stroke-width", 1.5);
+                });
+
+            rects.on("mouseout", function () {
+                tooltip.transition()
+
+
+                    .duration(200)
+                    .style("opacity", 0);
+
+                d3.select(this)
+                    .style("stroke", "none");
+            });
+    }
+
+
+
+            
+        function heat_map(data) {
+            const svg = d3.select("#h_map");
+            const f_data = data
+                .filter(d => d.cause === "Stroke")
+                .filter(d => d.state !== "United States" && d.state !== "District of Columbia");
+
+
+            /* Flatmap logic: https://www.w3schools.com/jsref/jsref_array_flatmap.asp
+                            ** Also was inspired by 345 last semester 
+            */
+
+            const yearly_data = Array.from(
+                d3.group(f_data, d => d.state), 
+                ([state, values]) => ({
+                    state: state,
+                    years: values.map(d => ({
+                       year: d.year,
+                        rate: d.d_rate
+                }))
+                    })
+            )
+
+            const all_years = [...new Set(f_data.map(d => d.year))].sort((a, b) => a - b);
+            const all_states = [...new Set(f_data.map(d => d.state))];
+            const all_rates = f_data.map(d => d.d_rate);
+
+            const x_scale = d3.scaleBand()
+                .domain(all_years)
+                .range([0, width - m_left - m_right])
+
+            
+            const y_scale = d3.scaleBand()
+                .domain(all_states)
+                .range([0, height - m_top - m_bottom])
+
+
+            const color_scale = d3.scaleLinear()
+                .domain([d3.min(all_rates), d3.max(all_rates)])
+                .range([ "#ffb3b3", "#330000"]);  
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${m_left}, ${m_top})`);
+            
+            const squares = g.selectAll("rect")
+                .data(yearly_data.flatMap(d => d.years.map(year => ({
+                    state: d.state,
+                    year: year.year,
+                    rate: year.rate
+                }))))
+                .enter()
+                .append("rect")
+                .attr("x", d => x_scale(d.year))
+                .attr("y", d => y_scale(d.state)) 
+                .attr("width", x_scale.bandwidth()) 
+                .attr("height", y_scale.bandwidth()) 
+                .attr("fill", d => color_scale(d.rate)) 
+                .attr("opacity", 1)
+
+            
+            g.append("g")
+                .call(d3.axisBottom(x_scale))
+                .attr("transform", `translate(0, ${height - m_top - m_bottom})`)
+                .selectAll("text")
+                .attr("font-size", "10px")
+                .attr("font-family", "Courier New");
+
+            g.append("g")
+                .call(d3.axisLeft(y_scale))
+                .selectAll("text")
+                .attr("font-size", "10px")
+                .attr("font-family", "Courier New");
+            
+            g.append("text")
+                .attr("x", width / 3)
+                .attr("y", height / 10 - 150)
+                .attr("font-size", "18px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Change in Age-Related Rate of Death in all States from 1999 - 2017");
+
+            svg.append("path")
+                .attr("d", "M220 80 Q800 90 800 90 Q900 80 900 90")
+                .attr("fill", "none")
+                .attr("stroke", "#e6e600")
+                .attr("stroke-width", 25)
+                .attr("stroke-linecap", "round")
+                .attr("opacity", 0.2);
+            
+            svg.append("text")
+                .attr("x", (width - (m_left + m_right)) / 2)
+                .attr("y", height - m_bottom + 60)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Year");
+
+            svg.append("text")
+                .attr("x", 70)
+                .attr("y", height - 660)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("State");
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+
+            
+            squares.on("mouseover", function (event, d) {
+                tooltip.transition().style("opacity", 0.7);
+                let r = d.rate
+                tooltip.html(`${r}`) 
+                    .style("left", (event.pageX)+ 15 +"px")
+                    .style("top", (event.pageY) + "px")
+                    .style("font-size", "15px")
+                    .style("font-weight", "700")
+                    .style("color", "white")
+                    .style("opacity", 5)
+
+                
+
+                d3.select(this)
+
+
+                    .style("opacity",  1)
+                    .style("stroke", "black")
+                    .attr("stroke-width", 1.5)
+ 
+            })
+                
+            squares.on("mouseout", function () {
+                tooltip.transition()
+                .duration(200)
+                .style("opacity", 0)
+                .attr("width", x_scale.bandwidth()) 
+                .attr("height", y_scale.bandwidth()) 
+                d3.select(this)
+                    .style("stroke", "none")
+
+            });
+        }
+ 
 
 
         function scatter_plot(data){
@@ -87,7 +398,7 @@
             svg.append("path")
                 .attr("d", "M250 120 Q450 130 600 125 Q1000 130 800 130")
                 .attr("fill", "none")
-                .attr("stroke", "#cbc3be")
+                .attr("stroke", "#e6e600")
                 .attr("stroke-width", 25)
                 .attr("stroke-linecap", "round")
                 .attr("opacity", 0.2);
@@ -132,35 +443,43 @@
                 .attr("cx", d => x_scale(d.year) + x_scale.bandwidth() / 2)
                 .attr("cy", d => y_scale(d.avg_rate))
                 .attr("r", 5)
-                .attr("opacity", "0.3")
-                .attr("fill", "#000000");
+                .attr("opacity", "1")
+                .attr("fill", "#330000");
             
+            // Tool tips: https://d3-graph-gallery.com/graph/interactivity_tooltip.html
 
             const tooltip = d3.select("body").append("div")
                 .attr("class", "tooltip")
                 .style("position", "absolute")
                 .style("padding", "10px")
-                .style("background-color", "#ffffff")
-                .style("border", "1px solid #dddddd")
+                .style("background-color", "rgba(230, 230, 0, 0.2)")
                 .style("border-radius", "5px")
                 .style("opacity", 0)
  
              
             dots.on("mouseover", function (event, d) {
-                tooltip.transition().style("opacity", 0.7);
+                tooltip.transition().style("opacity", 0.7)
+
                 tooltip.html(`Min: ${d3.min(avg_data, d => d.avg_rate).toFixed(2)}, Max: ${d3.max(avg_data, d => d.avg_rate).toFixed(2)}, Average: ${d.avg_rate.toFixed(2)}`)
                     .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 30) + "px");
+                    .style("top", (event.pageY - 30) + "px")
+                
+                d3.select(this)
+                    .style("opacity", 1)
+                    .style("stroke", "black")
+                    .attr("stroke-width", 5)
+ 
 
             })
-                .on("mousemove", function (event) {
-                tooltip.style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY - 30) + "px");
-            })
-                .on("mouseout", function () {
+        
+            dots.on("mouseout", function () {
                 tooltip.transition()
                 .duration(200)
-                .style("opacity", 0);
+                .style("opacity", 0)
+                d3.select(this)
+                .   style("stroke", "none")
+
+
             });
 
 
@@ -171,7 +490,7 @@
                 .append("filter")
                 .attr("id", "glow")
                 .append("feGaussianBlur")
-                .attr("stdDeviation", 1) 
+                .attr("stdDeviation", 3) 
                 .attr("result", "blurred");
 
             svg.select("defs")
@@ -181,7 +500,7 @@
                 .attr("dx", 0)
                 .attr("dy", 0)
                 .attr("stdDeviation", 3)
-                .attr("flood-color", "#cbc3be") 
+                .attr("flood-color", "#330000") 
                 .attr("flood-opacity", 1);
 
             // code stolen from : https://observablehq.com/@onoratod/animate-a-path-in-d3 (thank you danny)
@@ -195,8 +514,8 @@
                 .attr("d", line_gen(avg_data))
                 .attr("fill", "none")
                 .attr("opacity", 0.5)
-                .attr("stroke-width", 2)
-                .attr("stroke", "darkgrey")
+                .attr("stroke-width", 1)
+                .attr("stroke", "black")
                 .attr("filter", "url(#glow2)") 
                 .attr("transform", "translate(100, 150)");
             
@@ -237,7 +556,7 @@
             svg.append("path")
                 .attr("d", "M345 170 Q450 180 600 175 Q650 170 750 180 Q850 170 950 175 Q1000 180 1050 170")
                 .attr("fill", "none")
-                .attr("stroke", "#cbc3be")
+                .attr("stroke", "#e6e600")
                 .attr("stroke-width", 25)
                 .attr("stroke-linecap", "round")
                 .attr("opacity", 0.2);
@@ -283,8 +602,10 @@
 
             const color_scale = d3.scaleLinear()
                 .domain([0, d3.max(data, d => d.d_num)]) 
-                .range([ "#e5acb6", "#f88379"]);
-            //#420832
+                //.range(["#003311", "#00cc44"]);  
+                          //#420832
+                .range([ "#ffb3b3", "#330000"]);  
+
             const bars = g.selectAll(".bar")
                 .data(data)
                 .enter()
@@ -294,7 +615,7 @@
                 .attr("y", d => y_scale(d.d_num))
                 .attr("width", x_scale.bandwidth())
                 .attr("height", d => height - m_top - m_bottom - y_scale(d.d_num))
-                .attr("opacity", 0.7)
+                .attr("opacity", 1)
                 .attr("fill", d => color_scale(d.d_num));
 
 
@@ -302,30 +623,46 @@
                 .attr("class", "tooltip")
                 .style("position", "absolute")
                 .style("padding", "10px")
-                .style("background-color", "#fff")
-                .style("border", "1px solid #ddd")
+                .style("background-color", "rgba(230, 230, 0, 0.2)")
                 .style("border-radius", "5px")
-                .style("opacity", 0);
             
             bars.on("mouseover", function(event, d) {
                 tooltip.transition().style("opacity", 0.9);
                 tooltip.html(`State: ${d.state}<br>Deaths: ${d.d_num}<br>Death Rate: ${d.d_rate.toFixed(2)}`)
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 30) + "px");
+                    .style("left", event.pageX + 30 + "px")
+                    .style("top", event.pageY - 100 + "px");
+                
+                d3.select(this)
+                    .style("opacity", 1)
+                    .style("stroke", "black")
+                    .attr("stroke-width", 1.5)
             })
-            .on("mousemove", function(event) {
-                tooltip.style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 30) + "px");
-            })
-            .on("mouseout", function() {
+            
+            bars.on("mouseout", function() {
                 tooltip.transition()
                     .duration(200)
-                    .style("opacity", 0);
+                    .style("opacity", 0)
+                d3.select(this)
+                    .style("stroke", "none")
+
             });
 
         }
 
-        load_data();
+        // Date code: https://www.freecodecamp.org/news/javascript-get-current-date-todays-date-in-js/
+        // I just added this to keep the notebook theme going
+        function get_date() {
+            const date = new Date();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yy = String(date.getFullYear()).slice(-2);
+            return `${mm}.${dd}.${yy}`;
+        }
+        
+        
+        
+        document.getElementById('date').textContent = get_date();
+    load_data();
 
     </script>
 </body>
