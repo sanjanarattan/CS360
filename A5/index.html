@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<head>
+    <title>Influenza A Virus Infection in Ferrets</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
+
+    <div id="title" style="position:absolute; top: 30px;margin-bottom:50px;left:30px; font-family: 'Courier New',monospace; font-size: 30px;">
+        Influenza A Virus Infection in Ferrets
+    </div>
+
+    <svg id="b_chart" width="1400" height="1200">
+    </svg> 
+
+    <svg id="l_chart" width="1400" height="1200">
+    </svg> 
+
+    <svg id="s_matrix" width="1400" height="1200">
+    </svg> 
+
+    <script type="module">
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        
+        const width = 1400;
+        const height = 800;
+
+        const m_left = 100;
+        const m_right = 10;
+        const m_top = 200;
+        const m_bottom = 150;
+        const pad = 0.1;
+
+        async function load_data() {
+            let data = await d3.csv("./data/ferrets.csv");
+            data = data.map(d => ({
+                ferret: d.Ferret,                                                   // each ferret is given a unique identifier
+                virus: d.Virus,                                                     // strain of influenza virus
+                inoc_dose: parseFloat(d.inoc_dose),                                 // inoculation dose
+                lethal: d.lethal == "true" ? 1 : 0,                                 // was infection lethal (changed to binary)
+                origin: d.Origin,                                                   // virus origin
+                w_loss: parseFloat(d.wt_loss),                                      // total weight loss
+                wt_loss_day: parseFloat(d.wt_loss_day),                              // total weight loss
+                temp: parseFloat(d.temp),                                           // temp
+                l_day: parseFloat(d.lethal_day),                                    // days till death
+                d1_inoc: isNaN(parseFloat(d.d1_inoc)) ? 0 : parseFloat(d.d1_inoc),  // doses
+                d2_inoc: isNaN(parseFloat(d.d2_inoc)) ? 0 : parseFloat(d.d2_inoc),  
+                d3_inoc: isNaN(parseFloat(d.d3_inoc)) ? 0 : parseFloat(d.d3_inoc),  
+                d4_inoc: isNaN(parseFloat(d.d4_inoc)) ? 0 : parseFloat(d.d4_inoc),  
+                d5_inoc: isNaN(parseFloat(d.d5_inoc)) ? 0 : parseFloat(d.d5_inoc),  
+                d6_inoc: isNaN(parseFloat(d.d6_inoc)) ? 0 : parseFloat(d.d6_inoc),  
+                d7_inoc: isNaN(parseFloat(d.d7_inoc)) ? 0 : parseFloat(d.d7_inoc),  
+                d8_inoc: isNaN(parseFloat(d.d8_inoc)) ? 0 : parseFloat(d.d8_inoc),  
+                d9_inoc: isNaN(parseFloat(d.d9_inoc)) ? 0 : parseFloat(d.d9_inoc),
+            }))
+
+
+            bub_chart(data);
+            l_chart(data)
+            s_matrix(data)
+        }
+
+        function bub_chart(data) {
+            // scales: 
+            // x: temperature
+            // y: weight loss
+            // color: origin
+            // size: lethal day (how many days survived)
+
+            const svg = d3.select("#b_chart");
+
+            const x_scale = d3.scaleLinear()
+                .domain([d3.min(data, d => d.temp), d3.max(data, d => d.temp)])
+                .range([m_left, width - m_right]);
+
+            const y_scale = d3.scaleLinear()
+                .domain([d3.min(data, d => d.w_loss), d3.max(data, d => d.w_loss)])
+                .range([height - m_bottom, m_top]);
+
+            svg.append("g")
+                .attr("transform", `translate(0, ${height - m_bottom})`)
+                .call(d3.axisBottom(x_scale))
+                .style("font-family", "Courier New");
+
+            svg.append("g")
+                .attr("transform", `translate(${m_left}, 0)`)
+                .call(d3.axisLeft(y_scale))
+                .style("font-family", "Courier New");
+
+            svg.append("text")
+                .attr("x", ((width - (m_left + m_right)) / 2) + 50)
+                .attr("y", height - m_bottom + 60)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Temperature");
+
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(height / 2))
+                .attr("y", m_left / 4)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Total weight loss");
+
+            svg.append("text")
+                .attr("x", 500)
+                .attr("y", 150)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("1. Relationships between Weight Loss, Temperature, Days Survived, and Inoculation");
+
+            // color scale ordinal: https://library.fridoverweij.com/docs/d3tutorial/categorical_scales.html
+
+            const color_scale = d3.scaleOrdinal(d3.schemeCategory10)
+                .domain([...new Set(data.map(d => d.origin))])                                          // create an iterable set of origins 
+                .range(d3.schemeCategory10.slice(0, [...new Set(data.map(d => d.origin))].length));     // iterate and assign a color to origin using D3's predefined scale of 10 colors
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("position", "absolute")
+                .style("padding", "10px")
+                .style("background-color", "rgba(230, 230, 0, 0.5)")
+                .style("border-radius", "5px")
+                .style("opacity", 0);
+
+            // filtering logic: use a flag when something is filtered 
+
+            let filtered = null;
+
+            const bubs = svg.selectAll(".bubble")
+                .data(data)
+                .enter()
+                .append("circle")
+                .attr("class", "bubble")
+                .attr("cx", d => x_scale(d.temp))
+                .attr("cy", d => y_scale(d.w_loss))
+                .attr("r", d => d.l_day + 5)
+                .style("fill", d => color_scale(d.origin))
+                .style("opacity", 0.6);
+
+            bubs.on("mouseover", function(event, d) {
+                // control to prevent weird error where filtered points return to original opacoty when hovered over
+                if (!filtered || d.origin == filtered) {
+                    tooltip.transition().style("opacity", 1);
+                    tooltip.html(`Dose: ${d.inoc_dose},<br>Origin: ${d.origin},<br>Days Survived: ${d.l_day}`)
+                        .style("left", event.pageX + 15 + "px")
+                        .style("top", event.pageY + "px")
+                        .style("font-size", "15px")
+                        .style("color", "black");
+
+                    d3.select(this)
+                        .style("stroke", "black")
+                        .attr("stroke-width", 1.5)
+                        .style("opacity", 1);
+                }
+            });
+
+            bubs.on("mouseout", function() {
+                tooltip.transition().duration(200).style("opacity", 0);
+                d3.select(this)
+                    .style("stroke", "none")
+                    // opacity setting for hover or filtered
+                    .style("opacity", d => (!filtered || d.origin == filtered) ? 0.6 : 0.2);
+            });
+
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width - 20}, ${m_top})`);
+
+            const origins = [...new Set(data.map(d => d.origin))];
+
+            const legend_items = legend.selectAll(".legend-item")
+                .data(origins)
+                .enter().append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(0, ${i * 20})`)
+                .style("cursor", "pointer")
+                .on("click", function(event, selected_origin) {
+                    if (filtered == selected_origin) {
+                        filtered = null;
+                        bubs.transition()
+                            .duration(300)
+                            .style("opacity", 0.6);
+
+                        d3.select(this)
+                            .style("stroke", "none");
+                    } else {
+                        filtered = selected_origin;
+                        bubs.transition()
+                            .duration(300)
+                            .style("opacity", d => d.origin == filtered ? 0.6 : 0.2);
+                    }
+                });
+
+            legend_items.append("rect")
+                .attr("width", 20)
+                .attr("height", 20)
+                .style("fill", d => color_scale(d));
+
+            legend_items.append("text")
+                .attr("x", m_right + 20)
+                .attr("y", 15)
+                .style("font-family", "'Courier New', monospace")
+                .style("font-size", "14px")
+                .text(d => d);
+        }
+
+
+
+        function l_chart(data) {
+
+
+            const svg = d3.select("#l_chart");
+
+            const x_scale = d3.scaleLinear()
+                .domain([0, 9])
+                .range([m_left, width - m_right]);
+
+            const y_scale = d3.scaleLinear()
+                .domain([0,7])
+                .range([height - m_bottom, m_top]);
+
+            const days = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+            svg.append("g")
+                .attr("transform", `translate(0, ${height - m_bottom})`)
+                .call(d3.axisBottom(x_scale))
+                .style("font-family", "Courier New");
+
+            svg.append("g")
+                .attr("transform", `translate(${m_left}, 0)`)
+                .call(d3.axisLeft(y_scale))
+                .style("font-family", "Courier New");
+
+            svg.append("text")
+                .attr("x", ((width - (m_left + m_right)) / 2) + 50)
+                .attr("y", height - m_bottom + 60)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Days");
+
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(height / 2))
+                .attr("y", m_left / 4)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("Average Dose (EID)");
+
+            svg.append("text")
+                .attr("x", 500)
+                .attr("y", 150)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("2. Average Inoculation of Different IAV Strains over 9 Days");
+
+            const color_scale = d3.scaleOrdinal(d3.schemeCategory10)
+                .domain([...new Set(data.map(d => d.origin))]);
+
+            const origins = [...new Set(data.map(d => d.origin))];
+
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("position", "absolute")
+                .style("padding", "10px")
+                .style("background-color", "rgba(230, 230, 0, 0.5)")
+                .style("border-radius", "5px")
+                .style("opacity", 0);
+
+            const inoc_avg = origins.map(origin => ({
+                origin,
+                doses: days.map(day => ({
+                    day,
+                    doses: d3.mean(
+                        data
+                            .filter(d => d.origin == origin)
+                            .map(d => d[`d${day}_inoc`])
+                    ) || 0  // make line graph start at 0 ?
+                }))
+            }));
+
+            const line = d3.line()
+                .x(d => x_scale(d.day))
+                .y(d => y_scale(d.doses));
+
+            inoc_avg.forEach(l => {
+
+                svg.append("path")
+                    .datum(l.doses)
+                    .attr("class", "line-path") 
+                    .attr("fill", "none")
+                    .attr("stroke", color_scale(l.origin))
+                    .attr("stroke-width", 2)
+                    .attr("d", line)
+                    .attr("d_origin", l.origin);
+
+                const bubs = svg.selectAll(null) 
+                    .data(l.doses)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", d => x_scale(d.day))
+                    .attr("cy", d => y_scale(d.doses))
+                    .attr("r", 2)
+                    .attr("fill", 0) 
+                    .style("opacity", 0.6)
+
+
+                    bubs.on("mouseover", function(event, d) {
+                        tooltip.transition().style("opacity", 1);
+                        tooltip.html(`Average Dose: ${d.doses.toFixed(2)}`)
+                            .style("left", event.pageX + 15 + "px")
+                            .style("top", event.pageY + "px")
+                            .style("font-size", "15px")
+                            .style("color", "black");
+                        
+                    });
+
+                    bubs.on("mouseout", function() {
+                        tooltip.transition().duration(200).style("opacity", 0);
+                    });
+
+            });
+
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width - 20}, ${m_top})`);
+                
+
+            let filtered = null;
+
+            const legend_items = legend.selectAll(".legend-item")
+                .data(origins)
+                .enter().append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(0, ${i * 20})`)
+                .on("click", function (event, selected_origin) {
+                    if (filtered == selected_origin) {
+                        filtered = null;
+                        svg.selectAll(".line-path")
+                        .transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                    } else {
+                        filtered = selected_origin;
+                        svg.selectAll(".line-path, .data-point")
+                            .transition()
+                            .duration(300)
+                            .style("opacity", function() {
+                                return d3.select(this).attr("d_origin") == filtered ? 1 : 0.2;
+                            });
+                    }
+                });
+                
+            legend_items.append("rect")
+                .attr("width", 20)
+                .attr("height", 20)
+                .style("fill", d => color_scale(d));
+
+            legend_items.append("text")
+                .attr("x", m_right + 20)
+                .attr("y", 15)
+                .style("font-family", "'Courier New', monospace")
+                .style("font-size", "14px")
+                .text(d => d);
+          
+        }
+
+
+        function s_matrix(data) {
+            const variables = ['temp', 'w_loss', 'wt_loss_day'];
+            const colors = { 'temp': 'red', 'w_loss': 'blue', 'wt_loss_day': 'green' };
+
+            const svg = d3.select("#s_matrix")
+
+            svg.append("rect")
+                .attr("x", m_left) 
+                .attr("y", m_top)   
+                .attr("width", width - m_left - m_right)  
+                .attr("height", height - m_top - m_bottom)  
+                .attr("fill", "none")  
+                .attr("stroke", "black")
+                .attr("opacity", 0.2);
+                
+            svg.append("line")
+                .attr("x1", m_left + 1 * ((width - m_left - m_right)/3))
+                .attr("y1", m_top)
+                .attr("x2", m_left + 1 * ((width - m_left - m_right)/3))
+                .attr("y2", m_top +  height - m_top - m_bottom)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.2);
+
+
+            svg.append("line")
+                .attr("x1", m_left + 2 * ((width - m_left - m_right)/3))
+                .attr("y1", m_top)
+                .attr("x2",m_left + 2 * ((width - m_left - m_right)/3))
+                .attr("y2", m_top +  height - m_top - m_bottom)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.2);
+
+            
+            
+            svg.append("line")
+                .attr("x1", m_left)
+                .attr("y1", m_top + 1 * ((height - m_top - m_bottom)/3))
+                .attr("x2", m_left +  width - m_left - m_right)
+                .attr("y2", m_top + 1 * (height - m_top - m_bottom)/3)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.2);
+
+
+            svg.append("line")
+                .attr("x1", m_left)
+                .attr("y1", m_top + 2 * ((height - m_top - m_bottom)/3))
+                .attr("x2", m_left +  width - m_left - m_right)
+                .attr("y2", m_top + 2 * (height - m_top - m_bottom)/3)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.2);
+
+            svg.append("text")
+                .attr("x", m_left - 50)
+                .attr("y", m_top + 1 * ((height - m_top - m_bottom)/3)-60)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("temp")
+                .attr("label", "temp_y")
+                .attr("opacity", 0.4)
+
+
+
+            svg.append("text")
+                .attr("x", m_left - 50)
+                .attr("y", m_top + 2 * ((height - m_top - m_bottom)/3) - 60)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("w_loss")
+                .attr("label", "w_loss_y")
+                .attr("opacity", 0.4)
+
+
+
+            svg.append("text")
+                .attr("x", m_left-50)
+                .attr("y", m_top + 3 * ((height - m_top - m_bottom)/3) - 60)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("wt_loss_day")
+                .attr("label", "wt_loss_day_y")
+                .attr("opacity", 0.4)
+
+
+
+
+            svg.append("text")
+                .attr("x",  m_left + 1 * ((width - m_left - m_right)/3) - 200)
+                .attr("y", m_top - 10)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("temp")
+                .attr("label", "temp_x")
+                .attr("opacity", 0.4)
+
+
+
+            svg.append("text")
+                .attr("x",  m_left + 2 * ((width - m_left - m_right)/3) - 200)
+                .attr("y", m_top - 10)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("w_loss")
+                .attr("label", "w_loss_x")
+                .attr("opacity", 0.4)
+
+
+
+            svg.append("text")
+                .attr("x",  m_left + 3 * ((width - m_left - m_right)/3)- 200)
+                .attr("y", m_top - 10)
+                .attr("font-size", "12px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("wt_loss_day")
+                .attr("label", "wt_loss_day_x")
+                .attr("opacity", 0.4)
+
+
+
+            svg.append("text")
+                .attr("x", 500)
+                .attr("y", 150)
+                .attr("font-size", "16px")
+                .attr("font-family", "Courier New")
+                .attr("text-anchor", "middle")
+                .text("3. SPLOM of temp, w_loss, and wt_loss_day")
+
+
+
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const var1 = variables[col]; 
+                    const var2 = variables[row];
+
+                    const x_scale = d3.scaleLinear()
+                        .domain(d3.extent(data, d => d[var1]))
+                        .range([m_left + col *  ((width - m_left - m_right)/3) + 5, m_left + (col + 1) *  ((width - m_left - m_right)/3) - 5]);
+
+                    const y_scale = d3.scaleLinear()
+                        .domain(d3.extent(data, d => d[var2]))
+                        .range([m_top + (row + 1) * ((height - m_top - m_bottom)/3) - 5, m_top + row * ((height - m_top - m_bottom)/3) + 5]);
+
+                    svg.selectAll(null)
+                        .data(data)
+                        .enter()
+                        .append("circle")
+                        .attr("cx", d => x_scale(d[var1]))
+                        .attr("cy", d => y_scale(d[var2]))
+                        .attr("r", 2)
+                        .attr("fill", colors[var1])
+                        .attr("opacity", 0.6);
+
+                    // added transparent rectangles for hover logic
+                    svg.append("rect")
+                        .attr("x", m_left + col * ((width - m_left - m_right) / 3))
+                        .attr("y", m_top + row * ((height - m_top - m_bottom) / 3))
+                        .attr("width", (width - m_left - m_right) / 3)
+                        .attr("height", (height - m_top - m_bottom) / 3)
+                        .attr("fill", "transparent")
+                        .on("mouseover", function () {
+                    svg.selectAll("text")
+                        .filter(function() {
+                            return d3.select(this).attr("label") ==`${var1}_x`|| d3.select(this).attr("label") ==`${var2}_y`;
+                                                 })
+                        .attr("opacity", 1);  
+                        })
+                        .on("mouseout", function () {
+                            svg.selectAll("text")
+                                .filter(function() {
+                                    return d3.select(this).attr("label") ==`${var1}_x` ||d3.select(this).attr("label") == `${var2}_y`;
+                                })
+                                .attr("opacity", 0.4);
+                        });
+                }
+            }
+
+
+
+        }
+
+
+    
+
+        function get_date() {
+            const date = new Date();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yy = String(date.getFullYear()).slice(-2);
+            return `${mm}.${dd}.${yy}`;
+        }
+
+        document.getElementById('date').textContent = get_date();
+        load_data();
+    </script>
+</body>
+</html>
