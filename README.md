@@ -9,6 +9,8 @@ A4: https://sanjanarattan.github.io/CS360/A4
 
 A5: https://sanjanarattan.github.io/CS360/A5/
 
+A6: https://sanjanarattan.github.io/CS360/A6/
+
 
 
 
