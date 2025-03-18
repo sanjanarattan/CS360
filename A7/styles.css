@@ -1,0 +1,19 @@
+h1, h2, h3, p, body {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+body {
+    margin: 0;
+    height: 100vh;  
+    width: 100vw; 
+    background-image: url('./images/dn.png');
+    background-size: 110%;
+    background-attachment: fixed;
+    overflow:auto;
+}
+
+
+svg {
+    width: 100%;
+    height: 100%;
+}
