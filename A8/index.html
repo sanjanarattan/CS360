@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Visualization Exploration with D3.js</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
+    <div style="position:absolute; top: 30px; margin-bottom:50px; left:30px; font-family: 'Courier New', monospace; font-size: 30px;">
+        gahuku–gama social network
+    </div>
+    <svg id="nld_fdl" width="1400" height="800"></svg>
+    <svg id="am" width="1400" height="800"></svg>
+
+
+
+    <div id="references" style="position: absolute; bottom: 10px; left: 10px; font-family: 'Courier New', monospace; font-size: 16px;">
+        <p>References:</p>
+        <ul>
+
+            <li>
+                <a href="https://d3-graph-gallery.com/graph/network_basic.html" target="_blank">
+                    Bostock, M., Ogievetsky, V., & Heer, J. (2011). D3: Data-Driven Documents. IEEE Transactions on Visualization and Computer Graphics.
+                </a>
+            </li>
+            <li>
+                <a href="https://networkrepository.com" target="_blank">
+                    Rossi, R. A., & Ahmed, N. K. (2015). The Network Data Repository with Interactive Graph Analytics and Visualization. In AAAI.
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <script type="module">
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
+
+        const width = 1400;
+        const height = 800;
+
+        async function load_data() {
+            const data = await d3.text("./data/soc-tribes.edges")
+
+            const lines = data.split('\n');
+            let nodes = new Set();
+            const links = [];
+
+            lines.forEach(line => {
+                if (line.startsWith('%')) 
+                    return
+                const parts = line.split(/\s+/)
+                if (parts.length === 3) {
+                    const node1 = parseInt(parts[0])
+                    const node2 = parseInt(parts[1])
+                    const sign = parseInt(parts[2])
+                    nodes.add(node1);
+                    nodes.add(node2);
+                    links.push({
+                        source: node1,
+                        target: node2,
+                        value: sign
+                    });
+                }
+            });
+
+            nodes = Array.from(nodes).map(id => ({ id }))
+
+            const data_clean = {
+                nodes,
+                links
+            };
+
+            nldfdl(data_clean)
+            
+        }
+         
+
+        function nldfdl(data) {
+
+            // code https://d3-graph-gallery.com/graph/network_basic.html
+
+            const svg = d3.select("#nld_fdl")
+
+            const link = svg
+                .selectAll(".link")
+                .data(data.links)
+                .enter()
+                .append("line")
+                .attr("class", "link")
+                .style("stroke", "#aaa")
+
+            const node = svg
+                .selectAll(".node")
+                .data(data.nodes)
+                .enter()
+                .append("circle")
+                .attr("class", "node")
+                .attr("r", 20)
+                .style("fill", "#69b3a2")
+                .call(d3.drag() 
+                    .on("start", start)
+                    .on("drag", drag)
+                    .on("end", end))
+
+            svg.selectAll(".label")
+                .data(data.nodes)
+                .enter()
+                .append("text")
+                .attr("class", "label")
+                .attr("text-anchor", "middle")
+                .attr("dy", -12)
+                .text(d => d.id)
+
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .on("tick", ticked)
+
+            function ticked() {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y)
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y)
+
+            }
+
+            function start(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart()
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function drag(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function end(event, d) {
+                if (!event.active) simulation.alphaTarget(0)
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        function get_date() {
+            const date = new Date();
+            const mm = String(date.getMonth() + 1).padStart(2, '0')
+            const dd = String(date.getDate()).padStart(2, '0')
+            const yy = String(date.getFullYear()).slice(-2)
+            return `${mm}.${dd}.${yy}`;
+        }
+
+        document.getElementById('date').textContent = get_date()
+        load_data();
+
+    </script>
+</body>
+</html>
