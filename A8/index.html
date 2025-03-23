@@ -19,7 +19,7 @@
 
 
 
-    <div id="references" style="position: absolute; bottom: 10px; left: 10px; font-family: 'Courier New', monospace; font-size: 16px;">
+    <div>
         <p>References:</p>
         <ul>
 
@@ -41,6 +41,12 @@
 
         const width = 1400;
         const height = 800;
+
+        const m_left = 100;
+        const m_right = 10;
+        const m_top = 200;
+        const m_bottom = 150;
+        const pad = 0.1;
 
         async function load_data() {
             const data = await d3.text("./data/soc-tribes.edges")
@@ -75,9 +81,89 @@
             };
 
             nldfdl(data_clean)
+            am(data_clean)
             
         }
          
+
+        function am(data) {
+            const svg = d3.select("#am");  
+            const degree = {}
+
+            data.nodes.forEach(node => {
+                degree[node.id] = 0
+            })
+
+
+            data.links.forEach(link => {
+                degree[link.source.id] = (degree[link.source.id] || 0) + 1 
+                degree[link.target.id] = (degree[link.target.id] || 0) + 1
+            })
+
+            
+
+            const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0));
+            const index = {}
+
+            data.nodes.forEach((node, idx) => {
+                index[node.id] = idx;
+            })
+
+            data.links.forEach(link => {
+                const i = index[link.source];
+                const j = index[link.target];
+                if (i !== undefined && j !== undefined) {
+                    matrix[i][j] = link.value || 1; 
+                    matrix[j][i] = link.value || 1;
+                }
+            });
+
+            const colorScale = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(degree))]) 
+                .range(["#ffffff", "#69b3a2"])
+
+            const cell_sz = 20;  
+
+            console.log(data.links);
+            console.log(degree)
+            console.log(matrix)
+
+            svg.selectAll("rect")
+                .data(matrix.flat())
+                .enter()
+                .append("rect")
+                .attr("x", (d, i) => (i % data.nodes.length) * cell_sz + 500)
+                .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)
+                .attr("width", cell_sz)
+                .attr("height", cell_sz)
+                .style("fill", (d, i) => colorScale(degree[data.nodes[Math.floor(i / data.nodes.length)].id]))
+                .style("stroke", "black")
+
+            svg.selectAll(".x-label")
+                .data(data.nodes)
+                .enter()
+                .append("text")
+                .attr("class", "x-label")
+                .attr("x", (d, i) => (i * cell_sz) + 500 + (cell_sz / 2))  
+                .attr("y", (data.nodes.length * cell_sz) + 20) 
+                .attr("text-anchor", "middle")
+                .attr("font-size", "10px")
+                .text((d, i) => i + 1); 
+
+            svg.selectAll(".y-label")
+                .data(data.nodes)
+                .enter()
+                .append("text")
+                .attr("class", "y-label")
+                .attr("x", 500 - 10)  
+                .attr("y", (d, i) => (i * cell_sz) + (cell_sz / 2))  
+                .attr("text-anchor", "middle")
+                .attr("font-size", "10px")
+                .text((d, i) => i + 1)  
+
+        }
+
+        
 
         function nldfdl(data) {
 
@@ -86,7 +172,7 @@
             const svg = d3.select("#nld_fdl")
 
             const link = svg
-                .selectAll(".link")
+                .selectAll("link")
                 .data(data.links)
                 .enter()
                 .append("line")
@@ -94,12 +180,12 @@
                 .style("stroke", "#aaa")
 
             const node = svg
-                .selectAll(".node")
+                .selectAll("node")
                 .data(data.nodes)
                 .enter()
                 .append("circle")
-                .attr("class", "node")
                 .attr("r", 20)
+                .attr("class", "node")
                 .style("fill", "#69b3a2")
                 .call(d3.drag() 
                     .on("start", start)
@@ -131,6 +217,10 @@
                 node
                     .attr("cx", d => d.x)
                     .attr("cy", d => d.y)
+
+                svg.selectAll(".label")
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y - 12)
 
             }
 
