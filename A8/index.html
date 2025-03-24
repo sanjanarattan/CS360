@@ -172,8 +172,14 @@
                     console.log(i)
                     console.log(j)
                     tooltip.transition().style("opacity", 1)
-                    label_x.filter((_, idx) => idx == j).style("font-weight", "bolder")
-                    label_y.filter((_, idx) => idx == i).style("font-weight", "bolder")
+                    label_x.filter((_, idx) => idx == j)
+                        .style("font-weight", "bolder")
+                        .attr("font-size", "15px")
+
+                    label_y.filter((_, idx) => idx == i)
+                        .style("font-weight", "bolder")
+                        .attr("font-size", "15px")
+
                     d3.select(this)
                         .style("stroke", "black")
                         .attr("stroke-width", 3)
@@ -182,7 +188,11 @@
                 rects.on("mouseout", function() {
                     tooltip.transition().duration(200).style("opacity", 0);
                     label_x.style("font-weight", "normal")
+                        .attr("font-size", "10px")
+
                     label_y.style("font-weight", "normal")
+                        .attr("font-size", "10px")
+
                     d3.select(this)
                         .style("stroke", "black")
                         .attr("stroke-width", 1)
