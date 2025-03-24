@@ -84,87 +84,102 @@
             am(data_clean)
             
         }
-         
 
+        
         function am(data) {
-            const svg = d3.select("#am");  
-            const degree = {}
+            const svg = d3.select("#am");
 
-            data.nodes.forEach(node => {
-                degree[node.id] = 0
-            })
-
-
-            data.links.forEach(link => {
-                degree[link.source.id] = (degree[link.source.id] || 0) + 1 
-                degree[link.target.id] = (degree[link.target.id] || 0) + 1
-            })
-
-            
-
-            const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0));
+            const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0))
             const index = {}
 
             data.nodes.forEach((node, idx) => {
-                index[node.id] = idx;
-            })
+                index[node.id] = idx
+            });
 
             data.links.forEach(link => {
-                const i = index[link.source];
-                const j = index[link.target];
+                const i = index[link.source.id];
+                const j = index[link.target.id];
                 if (i !== undefined && j !== undefined) {
-                    matrix[i][j] = link.value || 1; 
-                    matrix[j][i] = link.value || 1;
+                    matrix[i][j] = 1  
+                    matrix[j][i] = 1
                 }
             });
 
-            const colorScale = d3.scaleLinear()
-                .domain([0, d3.max(Object.values(degree))]) 
+            for (let i = 0; i < data.nodes.length; i++) {
+                matrix[i][i] = 0
+            }
+
+            const colorScale = d3.scaleOrdinal()
+                .domain([0, 1])
                 .range(["#ffffff", "#69b3a2"])
 
-            const cell_sz = 20;  
+            const cell_sz = 30;  
 
-            console.log(data.links);
-            console.log(degree)
-            console.log(matrix)
-
-            svg.selectAll("rect")
-                .data(matrix.flat())
+            const rects = svg.selectAll("rect")
+                .data(matrix.flat())  
                 .enter()
                 .append("rect")
-                .attr("x", (d, i) => (i % data.nodes.length) * cell_sz + 500)
-                .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)
+                .attr("x", (d, i) => (i % data.nodes.length) * cell_sz + 500)  
+                .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)  
                 .attr("width", cell_sz)
                 .attr("height", cell_sz)
-                .style("fill", (d, i) => colorScale(degree[data.nodes[Math.floor(i / data.nodes.length)].id]))
+                .style("fill", d => colorScale(d))  
                 .style("stroke", "black")
+                .attr("stroke-width", 1)
+                .style("opacity", 1)
+                .attr("data-index", (d, i) => i)
 
-            svg.selectAll(".x-label")
+            const label_x = svg.selectAll(".x-label")
                 .data(data.nodes)
                 .enter()
                 .append("text")
                 .attr("class", "x-label")
                 .attr("x", (d, i) => (i * cell_sz) + 500 + (cell_sz / 2))  
-                .attr("y", (data.nodes.length * cell_sz) + 20) 
+                .attr("y", (data.nodes.length * cell_sz) + 20)
                 .attr("text-anchor", "middle")
                 .attr("font-size", "10px")
-                .text((d, i) => i + 1); 
+                .text((d, i) => i + 1) 
 
-            svg.selectAll(".y-label")
+            const label_y = svg.selectAll(".y-label")
                 .data(data.nodes)
                 .enter()
                 .append("text")
                 .attr("class", "y-label")
                 .attr("x", 500 - 10)  
-                .attr("y", (d, i) => (i * cell_sz) + (cell_sz / 2))  
+                .attr("y", (d, i) => (i * cell_sz) + (cell_sz / 2))
                 .attr("text-anchor", "middle")
                 .attr("font-size", "10px")
-                .text((d, i) => i + 1)  
+                .text((d, i) => i + 1)
 
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("position", "absolute")
+
+            rects.on("mouseover", function(event, d) {
+                const index = d3.select(this).attr("data-index")
+                const i = Math.floor(index / data.nodes.length)
+                const j = index % data.nodes.length 
+
+                console.log(i)
+                console.log(j)
+                tooltip.transition().style("opacity", 1)
+                label_x.filter((_, idx) => idx == j).style("font-weight", "bolder")
+                label_y.filter((_, idx) => idx == i).style("font-weight", "bolder")
+                d3.select(this)
+                    .style("stroke", "black")
+                    .attr("stroke-width", 3)
+            });
+
+            rects.on("mouseout", function() {
+                tooltip.transition().duration(200).style("opacity", 0);
+                label_x.style("font-weight", "normal");
+                label_y.style("font-weight", "normal");
+                d3.select(this)
+                    .style("stroke", "black")
+                    .attr("stroke-width", 1)
+            });
         }
-
-        
-
+   
         function nldfdl(data) {
 
             // code https://d3-graph-gallery.com/graph/network_basic.html
