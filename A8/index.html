@@ -98,6 +98,37 @@
             function am(data) {
                 const svg = d3.select("#am");
 
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 10)
+                    .text("2. Adjacency Matrix for Relationships between")
+                    .attr("font-size", "15px")
+
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 30)
+                    .text("the Gahuka-Gama tribe network")
+                    .attr("font-size", "15px")
+                
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 55)
+                    .text("A colored cell represents a friendship")
+                    .attr("font-size", "12px")
+
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 65)
+                    .text("between the two respective tribes")
+                    .attr("font-size", "12px")
+                
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 80)
+                    .text("No tribe is considered friends with itself.")
+                    .attr("font-size", "12px")
+
+                    
                 const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0))
                 const index = {}
 
@@ -118,7 +149,7 @@
                     matrix[i][i] = 0
                 }
 
-                const colorScale = d3.scaleOrdinal()
+                const color_map = d3.scaleOrdinal()
                     .domain([0, 1])
                     .range(["#ffffff", "#69b3a2"])
 
@@ -132,7 +163,7 @@
                     .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)  
                     .attr("width", cell_sz)
                     .attr("height", cell_sz)
-                    .style("fill", d => colorScale(d))  
+                    .style("fill", d => color_map(d))  
                     .style("stroke", "black")
                     .attr("stroke-width", 1)
                     .style("opacity", 1)
@@ -183,6 +214,8 @@
                     d3.select(this)
                         .style("stroke", "black")
                         .attr("stroke-width", 3)
+                        .attr("width", cell_sz - 2)
+                        .attr("height", cell_sz - 2)
                 });
 
                 rects.on("mouseout", function() {
@@ -196,7 +229,35 @@
                     d3.select(this)
                         .style("stroke", "black")
                         .attr("stroke-width", 1)
+                        .attr("width", cell_sz)
+                        .attr("height", cell_sz)
                 });
+
+                
+                svg.append("rect")
+                    .attr("width", 20)
+                    .attr("height", 20)
+                    .attr("x", 1200)
+                    .attr("y", 10)
+                    .style("fill", d => (color_map(0)))
+                    .attr("stroke", "black")
+                    .attr("stroke-width", 1)
+                svg.append("rect")
+                    .attr("width", 20)
+                    .attr("height", 20)
+                    .attr("x", 1200)
+                    .attr("y", 30)
+                    .attr("stroke", "black")
+                    .attr("stroke-width", 1)
+                    .style("fill", d => (color_map(1)))
+                svg.append("text")
+                    .attr("x", 1230)
+                    .attr("y", 25)
+                    .text("Not friends")
+                svg.append("text")
+                    .attr("x", 1230)
+                    .attr("y", 45)
+                    .text("Friends")
             }
     
             function nldfdl(data) {
@@ -204,6 +265,18 @@
                 // code https://d3-graph-gallery.com/graph/network_basic.html
 
                 const svg = d3.select("#nld_fdl")
+
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 200)
+                    .text("1. Node Link Graph with Force Directed Layout for")
+                    .attr("font-size", "15px")
+
+                svg.append("text")
+                    .attr("x", 10)
+                    .attr("y", 220)
+                    .text("Relationships between the Gahuka-Gama tribe network")
+                    .attr("font-size", "15px")
 
                 const link = svg
                     .selectAll("link")
@@ -261,6 +334,8 @@
                     d3.select(this)
                         .style("stroke", "black")
                         .attr("stroke-width", 2)
+                        .attr("r", 23)
+
                     
                 })
 
@@ -269,6 +344,8 @@
                     d3.select(this)
                         .attr("stroke", "none")
                         .attr("stroke-width", 0)
+                        .attr("r", 20)
+
 
                 })
 
