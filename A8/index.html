@@ -1,273 +1,314 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graph Visualization Exploration with D3.js</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
-    <div style="position:absolute; top: 30px; margin-bottom:50px; left:30px; font-family: 'Courier New', monospace; font-size: 30px;">
-        gahuku–gama social network
-    </div>
-    <svg id="nld_fdl" width="1400" height="800"></svg>
-    <svg id="am" width="1400" height="800"></svg>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Graph Visualization Exploration with D3.js</title>
+        <link rel="stylesheet" href="styles.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
+        <div style="position:absolute; top: 30px; margin-bottom:50px; left:30px; font-family: 'Courier New', monospace; font-size: 30px;">
+            gahuku–gama social network
+        </div>
+        <svg id="nld_fdl" width="1400" height="800"></svg>
+        <svg id="am" width="1400" height="800"></svg>
 
 
 
-    <div>
-        <p>References:</p>
-        <ul>
+        <div>
+            <p>References:</p>
+            <ul>
 
-            <li>
-                <a href="https://d3-graph-gallery.com/graph/network_basic.html" target="_blank">
-                    Bostock, M., Ogievetsky, V., & Heer, J. (2011). D3: Data-Driven Documents. IEEE Transactions on Visualization and Computer Graphics.
-                </a>
-            </li>
-            <li>
-                <a href="https://networkrepository.com" target="_blank">
-                    Rossi, R. A., & Ahmed, N. K. (2015). The Network Data Repository with Interactive Graph Analytics and Visualization. In AAAI.
-                </a>
-            </li>
-        </ul>
-    </div>
+                <li>
+                    <a href="https://d3-graph-gallery.com/graph/network_basic.html" target="_blank">
+                        Bostock, M., Ogievetsky, V., & Heer, J. (2011). D3: Data-Driven Documents. IEEE Transactions on Visualization and Computer Graphics.
+                    </a>
+                </li>
+                <li>
+                    <a href="https://networkrepository.com" target="_blank">
+                        Rossi, R. A., & Ahmed, N. K. (2015). The Network Data Repository with Interactive Graph Analytics and Visualization. In AAAI.
+                    </a>
+                </li>
+            </ul>
+        </div>
 
-    <script type="module">
-        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
+        <script type="module">
+            import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
 
-        const width = 1400;
-        const height = 800;
+            const width = 1400;
+            const height = 800;
 
-        const m_left = 100;
-        const m_right = 10;
-        const m_top = 200;
-        const m_bottom = 150;
-        const pad = 0.1;
+            const m_left = 100;
+            const m_right = 10;
+            const m_top = 200;
+            const m_bottom = 150;
+            const pad = 0.1;
 
-        async function load_data() {
-            const data = await d3.text("./data/soc-tribes.edges")
+            async function load_data() {
+                const data = await d3.text("./data/soc-tribes.edges")
 
-            const lines = data.split('\n');
-            let nodes = new Set();
-            const links = [];
+                const lines = data.split('\n')
+                let nodes = new Set()
+                const links = []
+                const link_count = {}
 
-            lines.forEach(line => {
-                if (line.startsWith('%')) 
-                    return
-                const parts = line.split(/\s+/)
-                if (parts.length === 3) {
-                    const node1 = parseInt(parts[0])
-                    const node2 = parseInt(parts[1])
-                    const sign = parseInt(parts[2])
-                    nodes.add(node1);
-                    nodes.add(node2);
-                    links.push({
-                        source: node1,
-                        target: node2,
-                        value: sign
-                    });
-                }
-            });
 
-            nodes = Array.from(nodes).map(id => ({ id }))
+                lines.forEach(line => {
+                    if (line.startsWith('%')) 
+                        return
+                    const parts = line.split(/\s+/)
+                    if (parts.length === 3) {
+                        const node1 = parseInt(parts[0])
+                        const node2 = parseInt(parts[1])
+                        const sign = parseInt(parts[2])
+                        nodes.add(node1);
+                        nodes.add(node2);
+                        links.push({
+                            source: node1,
+                            target: node2,
+                            value: sign
+                        });
 
-            const data_clean = {
-                nodes,
-                links
-            };
+                        link_count[node1] = (link_count[node1] || 0) + 1
+                        link_count[node2] = (link_count[node2] || 0) + 1
+                    }
+                });
 
-            nldfdl(data_clean)
-            am(data_clean)
-            
-        }
+                nodes = Array.from(nodes).map(id => ({ id }))
 
-        
-        function am(data) {
-            const svg = d3.select("#am");
+                nodes.forEach(node => {
+                    node.link_num = link_count[node.id] || 0;
+                })
 
-            const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0))
-            const index = {}
+                const data_clean = {
+                    nodes,
+                    links
+                };
 
-            data.nodes.forEach((node, idx) => {
-                index[node.id] = idx
-            });
-
-            data.links.forEach(link => {
-                const i = index[link.source.id];
-                const j = index[link.target.id];
-                if (i !== undefined && j !== undefined) {
-                    matrix[i][j] = 1  
-                    matrix[j][i] = 1
-                }
-            });
-
-            for (let i = 0; i < data.nodes.length; i++) {
-                matrix[i][i] = 0
+                nldfdl(data_clean)
+                am(data_clean)
+                
             }
 
-            const colorScale = d3.scaleOrdinal()
-                .domain([0, 1])
-                .range(["#ffffff", "#69b3a2"])
 
-            const cell_sz = 30;  
+            function am(data) {
+                const svg = d3.select("#am");
 
-            const rects = svg.selectAll("rect")
-                .data(matrix.flat())  
-                .enter()
-                .append("rect")
-                .attr("x", (d, i) => (i % data.nodes.length) * cell_sz + 500)  
-                .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)  
-                .attr("width", cell_sz)
-                .attr("height", cell_sz)
-                .style("fill", d => colorScale(d))  
-                .style("stroke", "black")
-                .attr("stroke-width", 1)
-                .style("opacity", 1)
-                .attr("data-index", (d, i) => i)
+                const matrix = Array(data.nodes.length).fill().map(() => Array(data.nodes.length).fill(0))
+                const index = {}
 
-            const label_x = svg.selectAll(".x-label")
-                .data(data.nodes)
-                .enter()
-                .append("text")
-                .attr("class", "x-label")
-                .attr("x", (d, i) => (i * cell_sz) + 500 + (cell_sz / 2))  
-                .attr("y", (data.nodes.length * cell_sz) + 20)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "10px")
-                .text((d, i) => i + 1) 
+                data.nodes.forEach((node, idx) => {
+                    index[node.id] = idx
+                });
 
-            const label_y = svg.selectAll(".y-label")
-                .data(data.nodes)
-                .enter()
-                .append("text")
-                .attr("class", "y-label")
-                .attr("x", 500 - 10)  
-                .attr("y", (d, i) => (i * cell_sz) + (cell_sz / 2))
-                .attr("text-anchor", "middle")
-                .attr("font-size", "10px")
-                .text((d, i) => i + 1)
+                data.links.forEach(link => {
+                    const i = index[link.source.id];
+                    const j = index[link.target.id];
+                    if (i !== undefined && j !== undefined) {
+                        matrix[i][j] = 1  
+                        matrix[j][i] = 1
+                    }
+                });
 
-            const tooltip = d3.select("body").append("div")
-                .attr("class", "tooltip")
-                .style("position", "absolute")
+                for (let i = 0; i < data.nodes.length; i++) {
+                    matrix[i][i] = 0
+                }
 
-            rects.on("mouseover", function(event, d) {
-                const index = d3.select(this).attr("data-index")
-                const i = Math.floor(index / data.nodes.length)
-                const j = index % data.nodes.length 
+                const colorScale = d3.scaleOrdinal()
+                    .domain([0, 1])
+                    .range(["#ffffff", "#69b3a2"])
 
-                console.log(i)
-                console.log(j)
-                tooltip.transition().style("opacity", 1)
-                label_x.filter((_, idx) => idx == j).style("font-weight", "bolder")
-                label_y.filter((_, idx) => idx == i).style("font-weight", "bolder")
-                d3.select(this)
-                    .style("stroke", "black")
-                    .attr("stroke-width", 3)
-            });
+                const cell_sz = 30;  
 
-            rects.on("mouseout", function() {
-                tooltip.transition().duration(200).style("opacity", 0);
-                label_x.style("font-weight", "normal");
-                label_y.style("font-weight", "normal");
-                d3.select(this)
+                const rects = svg.selectAll("rect")
+                    .data(matrix.flat())  
+                    .enter()
+                    .append("rect")
+                    .attr("x", (d, i) => (i % data.nodes.length) * cell_sz + 500)  
+                    .attr("y", (d, i) => Math.floor(i / data.nodes.length) * cell_sz)  
+                    .attr("width", cell_sz)
+                    .attr("height", cell_sz)
+                    .style("fill", d => colorScale(d))  
                     .style("stroke", "black")
                     .attr("stroke-width", 1)
-            });
-        }
-   
-        function nldfdl(data) {
+                    .style("opacity", 1)
+                    .attr("data-index", (d, i) => i)
 
-            // code https://d3-graph-gallery.com/graph/network_basic.html
+                const label_x = svg.selectAll(".x-label")
+                    .data(data.nodes)
+                    .enter()
+                    .append("text")
+                    .attr("class", "x-label")
+                    .attr("x", (d, i) => (i * cell_sz) + 500 + (cell_sz / 2))  
+                    .attr("y", (data.nodes.length * cell_sz) + 20)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "10px")
+                    .text((d, i) => i + 1) 
 
-            const svg = d3.select("#nld_fdl")
+                const label_y = svg.selectAll(".y-label")
+                    .data(data.nodes)
+                    .enter()
+                    .append("text")
+                    .attr("class", "y-label")
+                    .attr("x", 500 - 10)  
+                    .attr("y", (d, i) => (i * cell_sz) + (cell_sz / 2))
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "10px")
+                    .text((d, i) => i + 1)
 
-            const link = svg
-                .selectAll("link")
-                .data(data.links)
-                .enter()
-                .append("line")
-                .attr("class", "link")
-                .style("stroke", "#aaa")
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "tooltip")
+                    .style("position", "absolute")
 
-            const node = svg
-                .selectAll("node")
-                .data(data.nodes)
-                .enter()
-                .append("circle")
-                .attr("r", 20)
-                .attr("class", "node")
-                .style("fill", "#69b3a2")
-                .call(d3.drag() 
-                    .on("start", start)
-                    .on("drag", drag)
-                    .on("end", end))
+                rects.on("mouseover", function(event, d) {
+                    const index = d3.select(this).attr("data-index")
+                    const i = Math.floor(index / data.nodes.length)
+                    const j = index % data.nodes.length 
 
-            svg.selectAll(".label")
-                .data(data.nodes)
-                .enter()
-                .append("text")
-                .attr("class", "label")
-                .attr("text-anchor", "middle")
-                .attr("dy", -12)
-                .text(d => d.id)
+                    console.log(i)
+                    console.log(j)
+                    tooltip.transition().style("opacity", 1)
+                    label_x.filter((_, idx) => idx == j).style("font-weight", "bolder")
+                    label_y.filter((_, idx) => idx == i).style("font-weight", "bolder")
+                    d3.select(this)
+                        .style("stroke", "black")
+                        .attr("stroke-width", 3)
+                });
 
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
-                .force("charge", d3.forceManyBody().strength(-400))
-                .force("center", d3.forceCenter(width / 2, height / 2))
-                .on("tick", ticked)
+                rects.on("mouseout", function() {
+                    tooltip.transition().duration(200).style("opacity", 0);
+                    label_x.style("font-weight", "normal")
+                    label_y.style("font-weight", "normal")
+                    d3.select(this)
+                        .style("stroke", "black")
+                        .attr("stroke-width", 1)
+                });
+            }
+    
+            function nldfdl(data) {
 
-            function ticked() {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y)
+                // code https://d3-graph-gallery.com/graph/network_basic.html
 
-                node
-                    .attr("cx", d => d.x)
-                    .attr("cy", d => d.y)
+                const svg = d3.select("#nld_fdl")
+
+                const link = svg
+                    .selectAll("link")
+                    .data(data.links)
+                    .enter()
+                    .append("line")
+                    .attr("class", "link")
+                    .style("stroke", "#aaa")
+
+                const node = svg
+                    .selectAll("node")
+                    .data(data.nodes)
+                    .enter()
+                    .append("circle")
+                    .attr("r", 20)
+                    .attr("class", "node")
+                    .style("fill", "#69b3a2")
+                    .call(d3.drag() 
+                        .on("start", start)
+                        .on("drag", drag)
+                        .on("end", end))
+
 
                 svg.selectAll(".label")
-                    .attr("x", d => d.x)
-                    .attr("y", d => d.y - 12)
+                    .data(data.nodes)
+                    .enter()
+                    .append("text")
+                    .attr("class", "label")
+                    .attr("text-anchor", "middle")
+                    .attr("dy", -12)
+                    .text(d => d.id)
 
+                const simulation = d3.forceSimulation(data.nodes)
+                    .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+                    .force("charge", d3.forceManyBody().strength(-400))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .on("tick", ticked)
+
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "tooltip")
+                    .style("position", "absolute")
+                    .style("padding", "10px")
+                    .style("background-color", "rgba(230, 230, 0, 0.5)")
+                    .style("border-radius", "5px")
+                    .style("opacity", 0)
+
+                node.on("mouseover", function(event, d) {
+                    tooltip.transition().style("opacity", 1);
+                    tooltip.html(`Friendships: ${d.link_num}`)
+                        .style("left", event.pageX + 15 + "px")
+                        .style("top", event.pageY + "px")
+                        .style("font-size", "15px")
+                        .style("color", "black")
+
+                    d3.select(this)
+                        .style("stroke", "black")
+                        .attr("stroke-width", 2)
+                    
+                })
+
+                node.on("mouseout", function() {
+                    tooltip.transition().duration(200).style("opacity", 0);
+                    d3.select(this)
+                        .attr("stroke", "none")
+                        .attr("stroke-width", 0)
+
+                })
+
+
+                function ticked() {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y)
+
+                    node
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y)
+
+                    svg.selectAll(".label")
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y - 12)
+
+                }
+
+                function start(event, d) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart()
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+
+                function drag(event, d) {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }
+
+                function end(event, d) {
+                    if (!event.active) simulation.alphaTarget(0)
+                    d.fx = null;
+                    d.fy = null;
+                }
             }
 
-            function start(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart()
-                d.fx = d.x;
-                d.fy = d.y;
+            function get_date() {
+                const date = new Date();
+                const mm = String(date.getMonth() + 1).padStart(2, '0')
+                const dd = String(date.getDate()).padStart(2, '0')
+                const yy = String(date.getFullYear()).slice(-2)
+                return `${mm}.${dd}.${yy}`;
             }
 
-            function drag(event, d) {
-                d.fx = event.x;
-                d.fy = event.y;
-            }
+            document.getElementById('date').textContent = get_date()
+            load_data();
 
-            function end(event, d) {
-                if (!event.active) simulation.alphaTarget(0)
-                d.fx = null;
-                d.fy = null;
-            }
-        }
-
-        function get_date() {
-            const date = new Date();
-            const mm = String(date.getMonth() + 1).padStart(2, '0')
-            const dd = String(date.getDate()).padStart(2, '0')
-            const yy = String(date.getFullYear()).slice(-2)
-            return `${mm}.${dd}.${yy}`;
-        }
-
-        document.getElementById('date').textContent = get_date()
-        load_data();
-
-    </script>
-</body>
-</html>
+        </script>
+    </body>
+    </html>
