@@ -18,7 +18,7 @@
 
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
-
+        
         async function load_data() {
             const data2 = await d3.text("./data/facebook_combined.txt");
             const lines2 = data2.split("\n");
@@ -44,35 +44,42 @@
                 }
             });
 
-            nodes2 = Array.from(nodes2).map(id => ({ id }));
-            const nodeIds = nodes2.map(node => node.id);
+            const nodeArray = Array.from(nodes2);
+
+            const shuffledNodes = nodeArray.sort(() => Math.random() - 0.5);
+            
+            const selectedNodes = new Set(shuffledNodes.slice(0, 500));
+
+            const filteredLinks = links2.filter(link => selectedNodes.has(link.source) && selectedNodes.has(link.target));
+
+            const nodesSubset = shuffledNodes.slice(0, 500);
+            
+            const nodeIds = nodesSubset;
             const matrixData = Array.from({ length: nodeIds.length }, () => Array(nodeIds.length).fill(0));
 
-            // Populate the adjacency matrix with 1s for edges
-            links2.forEach(link => {
+            filteredLinks.forEach(link => {
                 const sourceIndex = nodeIds.indexOf(link.source);
                 const targetIndex = nodeIds.indexOf(link.target);
                 matrixData[sourceIndex][targetIndex] = 1;
-                matrixData[targetIndex][sourceIndex] = 1; // Assuming undirected graph
+                matrixData[targetIndex][sourceIndex] = 1;
             });
 
             renderMatrix(nodeIds, matrixData);
         }
 
+
         function renderMatrix(nodeIds, matrixData) {
             const container = d3.select("#matrix-container");
             const matrixSize = nodeIds.length;
 
-            const cellSize = 1; // Size of each cell in the matrix
+            const cellSize = 10; 
 
-            // Create a div for the matrix grid
             const matrixDiv = container
                 .append("div")
                 .style("display", "grid")
                 .style("grid-template-columns", `repeat(${matrixSize}, ${cellSize}px)`)
                 .style("grid-template-rows", `repeat(${matrixSize}, ${cellSize}px)`);
 
-            // Create matrix cells
             matrixDiv
                 .selectAll(".matrix-cell")
                 .data(d3.range(matrixSize * matrixSize))
@@ -95,7 +102,6 @@
                     return matrixData[row][col] === 1 ? "1" : "";
                 });
 
-            // Add labels for nodes
             const labelDiv = container
                 .append("div")
                 .style("display", "grid")
