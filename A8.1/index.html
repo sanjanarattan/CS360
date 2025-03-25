@@ -8,19 +8,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin-top: 100px;
+        }
+    </style>
 </head>
 <body>
     <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
     <div style="position:absolute; top: 30px; left:30px; font-family: 'Courier New', monospace; font-size: 30px;">
         Facebook Social Network
     </div>
-    <svg id="nld_fdl2" width="1000" height="2000"></svg>
+    <svg id="nld_fdl2" width="1600" height="1000">
+        <g id="graph"></g> 
+    </svg> 
 
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
 
-        const width = 2000;
-        const height = 2000;
+        const width = 1600;  
+        const height = 500; 
 
         async function load_data() {
             const data2 = await d3.text("./data/facebook_combined.txt");
@@ -57,19 +64,22 @@
                 links: links2
             };
 
-            nldfdl(data_clean2, "#nld_fdl2", 3, 50, width, height);
+            nldfdl(data_clean2, "#nld_fdl2", 2, 5, 1600, 500);  
         }
 
         function nldfdl(data, name, radius, distance, w, h) {
             const svg = d3.select(name);
+            const graph = svg.select("#graph"); 
 
-            svg.append("text")
-                .attr("x", 10)
-                .attr("y", 200)
-                .text("Facebook Social Network")
-                .attr("font-size", "15px");
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(distance))  
+                .force("charge", d3.forceManyBody().strength(-100))  
+                .force("center", d3.forceCenter(w / 2 + 500, h / 2 + 900)) 
+                .alpha(0.5) 
+                .alphaDecay(0.05) 
+                .on("tick", ticked);
 
-            const link = svg
+            const link = graph
                 .selectAll("link")
                 .data(data.links)
                 .enter()
@@ -77,34 +87,20 @@
                 .attr("class", "link")
                 .style("stroke", "#aaa");
 
-            const node = svg
+            const node = graph
                 .selectAll("node")
                 .data(data.nodes)
                 .enter()
                 .append("circle")
-                .attr("r", radius)
+                .attr("r", radius)  
                 .attr("class", "node")
-                .style("fill", "#69b3a2")
-                .call(d3.drag()
-                    .on("start", start)
-                    .on("drag", drag)
-                    .on("end", end));
+                .style("fill", "#69b3a2");
 
-            svg.selectAll(".label")
-                .data(data.nodes)
-                .enter()
-                .append("text")
-                .attr("class", "label")
-                .attr("text-anchor", "middle")
-                .attr("dy", -12)
-                .text(d => d.id);
+            const zoomTransform = d3.zoomIdentity
+                .translate(w / 4, h / 4 + 100)  
+                .scale(0.2);  
 
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(distance))
-                .force("charge", d3.forceManyBody().strength(-200))
-                .force("center", d3.forceCenter(w / 2, h / 2))
-                .alpha(0.3) // Adjusted alpha to make the simulation shorter
-                .on("tick", ticked);
+            graph.attr("transform", zoomTransform);
 
             function ticked() {
                 link
@@ -116,21 +112,12 @@
                 node
                     .attr("cx", d => d.x)
                     .attr("cy", d => d.y);
-
-                svg.selectAll(".label")
-                    .attr("x", d => d.x)
-                    .attr("y", d => d.y - 12);
             }
 
             function start(event, d) {
                 if (!event.active) simulation.alphaTarget(0.3).restart();
                 d.fx = d.x;
                 d.fy = d.y;
-            }
-
-            function drag(event, d) {
-                d.fx = event.x;
-                d.fy = event.y;
             }
 
             function end(event, d) {
