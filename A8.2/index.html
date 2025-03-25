@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Graph Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Dancing+Script:wght@400..700&family=Mr+Dafoe&family=Petit+Formal+Script&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="date" style="position: absolute; top: 10px; right: 20px; font-family: 'Courier New', monospace; font-size: 16px;"></div>
+    <div style="position:absolute; top: 30px; left:30px; font-family: 'Courier New', monospace; font-size: 30px;">
+        Facebook Social Network - Adjacency Matrix
+    </div>
+    <div id="matrix-container" style="display: flex; justify-content: center; margin-top: 80px;"></div>
+
+    <script type="module">
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
+
+        async function load_data() {
+            const data2 = await d3.text("./data/facebook_combined.txt");
+            const lines2 = data2.split("\n");
+            let nodes2 = new Set();
+            const links2 = [];
+            const link_count2 = {};
+
+            lines2.forEach(line => {
+                if (line.trim() === "") return;
+                const parts = line.split(/\s+/);
+
+                if (parts.length === 2) {
+                    const node1 = parseInt(parts[0]);
+                    const node2 = parseInt(parts[1]);
+                    nodes2.add(node1);
+                    nodes2.add(node2);
+                    links2.push({
+                        source: node1,
+                        target: node2
+                    });
+                    link_count2[node1] = (link_count2[node1] || 0) + 1;
+                    link_count2[node2] = (link_count2[node2] || 0) + 1;
+                }
+            });
+
+            nodes2 = Array.from(nodes2).map(id => ({ id }));
+            const nodeIds = nodes2.map(node => node.id);
+            const matrixData = Array.from({ length: nodeIds.length }, () => Array(nodeIds.length).fill(0));
+
+            // Populate the adjacency matrix with 1s for edges
+            links2.forEach(link => {
+                const sourceIndex = nodeIds.indexOf(link.source);
+                const targetIndex = nodeIds.indexOf(link.target);
+                matrixData[sourceIndex][targetIndex] = 1;
+                matrixData[targetIndex][sourceIndex] = 1; // Assuming undirected graph
+            });
+
+            renderMatrix(nodeIds, matrixData);
+        }
+
+        function renderMatrix(nodeIds, matrixData) {
+            const container = d3.select("#matrix-container");
+            const matrixSize = nodeIds.length;
+
+            const cellSize = 1; // Size of each cell in the matrix
+
+            // Create a div for the matrix grid
+            const matrixDiv = container
+                .append("div")
+                .style("display", "grid")
+                .style("grid-template-columns", `repeat(${matrixSize}, ${cellSize}px)`)
+                .style("grid-template-rows", `repeat(${matrixSize}, ${cellSize}px)`);
+
+            // Create matrix cells
+            matrixDiv
+                .selectAll(".matrix-cell")
+                .data(d3.range(matrixSize * matrixSize))
+                .enter()
+                .append("div")
+                .attr("class", "matrix-cell")
+                .style("width", `${cellSize}px`)
+                .style("height", `${cellSize}px`)
+                .style("border", "1px solid #ccc")
+                .style("background-color", (d) => {
+                    const row = Math.floor(d / matrixSize);
+                    const col = d % matrixSize;
+                    return matrixData[row][col] === 1 ? "lightblue" : "white";
+                })
+                .style("text-align", "center")
+                .style("vertical-align", "middle")
+                .text((d) => {
+                    const row = Math.floor(d / matrixSize);
+                    const col = d % matrixSize;
+                    return matrixData[row][col] === 1 ? "1" : "";
+                });
+
+            // Add labels for nodes
+            const labelDiv = container
+                .append("div")
+                .style("display", "grid")
+                .style("grid-template-columns", `repeat(${matrixSize}, ${cellSize}px)`);
+
+            labelDiv
+                .selectAll(".row-label")
+                .data(nodeIds)
+                .enter()
+                .append("div")
+                .attr("class", "row-label")
+                .style("width", `${cellSize}px`)
+                .style("height", `${cellSize}px`)
+                .style("border", "1px solid #ccc")
+                .style("background-color", "#f5f5f5")
+                .style("text-align", "center")
+                .style("vertical-align", "middle")
+                .text((d) => d);
+        }
+
+        function get_date() {
+            const date = new Date();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yy = String(date.getFullYear()).slice(-2);
+            return `${mm}.${dd}.${yy}`;
+        }
+
+        document.getElementById('date').textContent = get_date();
+        load_data();
+
+    </script>
+</body>
+</html>

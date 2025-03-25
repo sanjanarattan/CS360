@@ -16,8 +16,11 @@
         </div>
         <svg id="nld_fdl" width="1400" height="800"></svg>
         <svg id="am" width="1400" height="800"></svg>
+        <svg id="nld_fdl2" width="1400" height="800"></svg>
+        <svg id="am2" width="1400" height="800"></svg>
 
 
+    
 
         <div>
             <p>References:</p>
@@ -84,19 +87,69 @@
                     node.link_num = link_count[node.id] || 0;
                 })
 
+                //console.log(nodes)
+                //console.log(links)
+
                 const data_clean = {
                     nodes,
                     links
                 };
 
-                nldfdl(data_clean)
-                am(data_clean)
-                
+
+                const data2 = await d3.text("./data/facebook_combined.txt");
+
+                const lines2 = data2.split("\n"); 
+                let nodes2 = new Set();
+                const links2 = [];
+                const link_count2 = {};
+
+                lines2.forEach(line => {
+                    if (line.trim() == "") return;  
+                    const parts = line.split(/\s+/); 
+
+                    if (parts.length === 2) {
+                        const node1 = parseInt(parts[0]);
+                        const node2 = parseInt(parts[1]);
+                        nodes2.add(node1);
+                        nodes2.add(node2);
+                        links2.push({
+                            source: node1,
+                            target: node2
+                        });
+                        link_count2[node1] = (link_count2[node1] || 0) + 1;
+                        link_count2[node2] = (link_count2[node2] || 0) + 1;
+                    }
+                });
+
+                nodes2 = Array.from(nodes2).map(id => ({ id }));
+                nodes2.forEach(node => {
+                    node.link_num = link_count2[node.id] || 0;
+                });
+
+
+                if (nodes2.length === 0) {
+                    console.error("No nodes found in facebook_combined.txt data");
+                    return;
+                }
+
+                const data_clean2 = {
+                    nodes: nodes2,  
+                    links: links2
+                };
+                var svg_name1 = "#nld_fdl"
+                var svg_name2 = "#nld_fdl2"
+                var svg_name3 = "#am"
+                var svg_name4 = "#am2"
+
+                nldfdl(data_clean, svg_name1, 20, 100, width, height)
+                am(data_clean,  svg_name3)
+                //nldfdl(data_clean2, svg_name2, 1, 2, 1000, 100)   
+                //am(data_clean2,  svg_name4)
+     
             }
 
-
-            function am(data) {
-                const svg = d3.select("#am");
+            function am(data, name) {
+                const svg = d3.select(name)
 
                 svg.append("text")
                     .attr("x", 10)
@@ -200,8 +253,8 @@
                     const i = Math.floor(index / data.nodes.length)
                     const j = index % data.nodes.length 
 
-                    console.log(i)
-                    console.log(j)
+                    //console.log(i)
+                    //console.log(j)
                     tooltip.transition().style("opacity", 1)
                     label_x.filter((_, idx) => idx == j)
                         .style("font-weight", "bolder")
@@ -260,22 +313,22 @@
                     .text("Friends")
             }
     
-            function nldfdl(data) {
+            function nldfdl(data, name, radius, distance, w, h) {
 
                 // code https://d3-graph-gallery.com/graph/network_basic.html
 
-                const svg = d3.select("#nld_fdl")
+                const svg = d3.select(name)
 
                 svg.append("text")
                     .attr("x", 10)
                     .attr("y", 200)
-                    .text("1. Node Link Graph with Force Directed Layout for")
+                    .text("1. Node Link Graph with Force Directed Layout and Tension")
                     .attr("font-size", "15px")
 
                 svg.append("text")
                     .attr("x", 10)
                     .attr("y", 220)
-                    .text("Relationships between the Gahuka-Gama tribe network")
+                    .text("Manipulation for Relationships between the Gahuka-Gama tribe network")
                     .attr("font-size", "15px")
 
                 const link = svg
@@ -291,7 +344,7 @@
                     .data(data.nodes)
                     .enter()
                     .append("circle")
-                    .attr("r", 20)
+                    .attr("r", radius)
                     .attr("class", "node")
                     .style("fill", "#69b3a2")
                     .call(d3.drag() 
@@ -309,10 +362,15 @@
                     .attr("dy", -12)
                     .text(d => d.id)
 
+                const line = d3.radialLine()
+                    .curve(d3.curveBundle.beta(0.85))
+                    .radius(function(d) { return d.y; })
+                    .angle(function(d) { return d.x / 180 * Math.PI; })
+
                 const simulation = d3.forceSimulation(data.nodes)
-                    .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+                    .force("link", d3.forceLink(data.links).id(d => d.id).distance(distance))
                     .force("charge", d3.forceManyBody().strength(-400))
-                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("center", d3.forceCenter(w / 2, h / 2))
                     .on("tick", ticked)
 
                 const tooltip = d3.select("body").append("div")
@@ -383,6 +441,39 @@
                     d.fx = null;
                     d.fy = null;
                 }
+
+                const sliderContainer = d3.select("body").append("div")
+                    .attr("class", "slider-container")
+                    .style("position", "absolute")  
+                    .style("top", "500px")         
+                    .style("left", "20px");   
+
+                sliderContainer.append("text")
+                    .text("Tension")
+                    .style("font-size", "14px")
+                    .style("margin-right", "10px")  
+                    .style("vertical-align", "middle"); 
+
+                const tensionSlider = sliderContainer.append("input")
+                    .attr("type", "range")
+                    .attr("min", -400)
+                    .attr("max", 100)
+                    .attr("step", 1)
+                    .attr("value", 5)
+                    .style("width", "100px");
+
+                const tensionValue = sliderContainer.append("text")
+                    .style("margin-left", "10px")
+                    .text("5");
+
+                tensionSlider.on("input", function() {
+                    tensionValue.text(this.value)
+
+                    const newStrength = this.value
+                    simulation.force("charge", d3.forceManyBody().strength(newStrength));
+                    simulation.alpha(1).restart()
+                });
+
             }
 
             function get_date() {
