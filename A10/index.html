@@ -21,6 +21,7 @@
             <figcaption>We can fix the visualization by adding <br> a more descriptive title and axis labels.</figcaption>
         </figure>
         
+        
     </div>
 
     <div class="content">
@@ -38,6 +39,20 @@
         
     </div>
     
+    
+    <div class="content">
+        <figure>
+            <img src="./images/old1.png" alt="Bad Image 1">
+            <figcaption>
+                <br>The following visualization has a bad color scheme </figcaption>
+        </figure>
+        
+        <figure>
+            <svg id="chart3" width="400" height="400"></svg>
+            <figcaption>We can fix the visualization by adding better colors <br> and changing it to a treemap.</figcaption>
+        </figure>
+        
+    </div>
 
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
@@ -61,10 +76,86 @@
 
             fix_area_chart(data)
             fix_stacked_bars(data)
+            tree_map(data)
 
 
 
         }
+
+        function tree_map(data) {
+            const svg = d3.select("#chart3")
+                .attr("width", width)
+                .attr("height", height);
+
+            const filtered = data.filter(d =>
+                d.year == 2017 &&
+                d.cause == "Heart disease" &&
+                d.state !== "United States" &&
+                d.state !== "District of Columbia"
+            );
+
+            const hierarchyData = {
+                name: "Cerebrovascular Deaths",
+                children: filtered.map(d => ({
+                    name: d.state,
+                    value: d.d_num
+                }))
+            };
+
+            const root = d3.hierarchy(hierarchyData)
+                .sum(d => d.value)
+                .sort((a, b) => b.value - a.value);
+
+            const treemapLayout = d3.treemap()
+                .padding(0)
+                .size([width, height]);
+
+            treemapLayout(root);
+
+            const x0 = d3.min(root.leaves(), d => d.x0);
+            const x1 = d3.max(root.leaves(), d => d.x1);
+            const y0 = d3.min(root.leaves(), d => d.y0);
+            const y1 = d3.max(root.leaves(), d => d.y1);
+
+            const layoutWidth = x1 - x0 + 150;
+            const layoutHeight = y1 - y0 + 150;
+
+            const scaleX = width / layoutWidth;
+            const scaleY = height / layoutHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            const offsetX = (width - layoutWidth * scale) / 2;
+            const offsetY = (height - layoutHeight * scale) / 2;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${offsetX},${offsetY}) scale(${scale}) translate(${-x0},${-y0})`);
+
+            const maxValue = d3.max(filtered, d => d.d_num);
+            const extent = d3.extent(filtered, d => d.d_num);
+        const color = d3.scaleSequential()
+            .domain(extent)
+            .interpolator(d3.interpolateReds);
+
+
+            const cell = g.selectAll("g")
+                .data(root.leaves())
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+            cell.append("rect")
+                .attr("width", d => d.x1 - d.x0)
+                .attr("height", d => d.y1 - d.y0)
+                .attr("fill", d => color(d.value)); 
+
+            cell.append("text")
+                .attr("x", 4)
+                .attr("y", 14)
+                .attr("font-size", "10px")
+                .attr("fill", "white")
+                .text(d => d.data.name);
+        }
+
+
 
         function fix_stacked_bars(data) {
             const svg = d3.select("#chart2")
