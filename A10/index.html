@@ -38,6 +38,20 @@
         </figure>
         
     </div>
+
+    <div class="content">
+        <figure>
+            <svg id="chart4" width="400" height="400"></svg>
+            <figcaption>
+                <br>The following visualization has a bad color scheme and no info of what it is</figcaption>
+        </figure>
+        
+        <figure>
+            <svg id="chart5" width="400" height="400"></svg>
+            <figcaption>We can fix the visualization by adding better colors <br> and explanatory text.</figcaption>
+        </figure>
+        
+    </div>
     
     
     <div class="content">
@@ -48,7 +62,7 @@
         </figure>
         
         <figure>
-            <svg id="chart3" width="400" height="400"></svg>
+            <svg id="chart6" width="400" height="400"></svg>
             <figcaption>We can fix the visualization by adding better colors <br> and changing it to a treemap.</figcaption>
         </figure>
         
@@ -74,16 +88,128 @@
                 d_rate: parseFloat(d["Age-adjusted Death Rate"])
             }));
 
-            fix_area_chart(data)
-            fix_stacked_bars(data)
             tree_map(data)
 
-
+            fix_area_chart(data)
+            fix_stacked_bars(data)
+            bad(data)
+            good(data)
 
         }
 
+        function good(data) {
+            const svg = d3.select("#chart5")
+                .attr("width", width)
+                .attr("height", height)
+
+            const radius = Math.min(width, height) / 2 - 50;
+
+            const filtered = data.filter(d =>
+                d.year == 2017 &&
+                d.cause == "Heart disease" &&
+                d.state !== "United States" &&
+                d.state !== "District of Columbia"
+            );
+
+            const pie = d3.pie()
+                .sort(null)
+                .value(d => d.d_num);
+
+            const arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius / 2);
+
+            const color = d3.scaleOrdinal()
+                .domain(filtered.map(d => d.state))
+                .range(d3.schemeCategory10);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${width / 2},${height / 2})`);
+
+            const pieData = pie(filtered);
+
+            g.selectAll("path")
+                .data(pieData)
+                .enter()
+                .append("path")
+                .attr("d", arc)
+                .attr("fill", d => color(d.data.state))
+                .attr("stroke", "white")
+                .attr("stroke-width", "1px");
+
+            g.selectAll("text")
+                .data(pieData)
+                .enter()
+                .append("text")
+                .attr("transform", d => `translate(${arc.centroid(d)})`)
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "3px")
+                .attr("fill", "white")
+                .text(d => d.data.state);
+
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", 20)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .text("Heart Disease Deaths by State (2017)");
+
+            filtered.slice(0, 10).forEach((d, i) => {
+                const entry = legend.append("g").attr("transform", `translate(0,${i * 15})`);
+                entry.append("rect")
+                    .attr("width", 10)
+                    .attr("height", 10)
+                    .attr("fill", color(d.state));
+                entry.append("text")
+                    .attr("x", 14)
+                    .attr("y", 9)
+                    .attr("font-size", "10px")
+                    .text(d.state);
+            });
+        }
+
+
+        function bad(data) {
+            const svg = d3.select("#chart4")
+                .attr("width", width)
+                .attr("height", height);
+
+            const filtered = data.filter(d =>
+                d.year == 2017 &&
+                d.cause == "Heart disease" &&
+                d.state !== "United States" &&
+                d.state !== "District of Columbia"
+            );
+
+            const pieData = filtered.slice(0, 6); 
+
+            const radius = Math.min(width, height) / 2 - 40;
+            const g = svg.append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+            const pie = d3.pie()
+                .value(d => d.d_num)
+                .sort(null);
+
+            const arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius/2); 
+
+            const color = d3.scaleOrdinal().range(["#ff4d4d"]);
+
+            g.selectAll("path")
+                .data(pie(pieData))
+                .enter()
+                .append("path")
+                .attr("d", arc)
+                .attr("fill", d => color(d.data.state))
+
+        }
+
+
         function tree_map(data) {
-            const svg = d3.select("#chart3")
+            const svg = d3.select("#chart6")
                 .attr("width", width)
                 .attr("height", height);
 
@@ -132,9 +258,9 @@
 
             const maxValue = d3.max(filtered, d => d.d_num);
             const extent = d3.extent(filtered, d => d.d_num);
-        const color = d3.scaleSequential()
-            .domain(extent)
-            .interpolator(d3.interpolateReds);
+            const color = d3.scaleSequential()
+                .domain(extent)
+                .interpolator(d3.interpolateReds);
 
 
             const cell = g.selectAll("g")
